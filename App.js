@@ -5,13 +5,26 @@ import { Sidebar } from './components/Sidebar.js';
 import { Feed } from './components/Feed.js';
 import { Widgets } from './components/Widgets.js';
 import { Profile } from './components/Profile.js';
+import { Messages } from './components/Messages.js';
 import { getStoredEntries, getUserProfile, getAISettings, deleteEntry, toggleEntryLike, toggleEntryBookmark } from './services/storage.js';
 
 const html = htm.bind(React.createElement);
 
+const PlaceholderView = ({ title }) => html`
+  <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full flex flex-col h-screen">
+    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-3 border-b border-gray-100">
+      <h1 className="text-xl font-bold text-black">${title}</h1>
+    </div>
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+      <h2 className="text-2xl font-bold text-black mb-2">Coming Soon</h2>
+      <p className="text-gray-500">The ${title} feature is under development. Check back later!</p>
+    </div>
+  </div>
+`;
+
 const App = () => {
   const [entries, setEntries] = useState([]);
-  const [view, setView] = useState('home'); // 'home' | 'profile' | 'bookmarks'
+  const [view, setView] = useState('home'); 
   const [userProfile, setUserProfile] = useState(getUserProfile());
   const [aiSettings, setAiSettings] = useState(getAISettings());
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -104,6 +117,58 @@ const App = () => {
 
   const viewTitle = view === 'bookmarks' ? 'Bookmarks' : 'Home';
 
+  // Determine Main Content Content
+  let mainContent;
+  if (view === 'home' || view === 'bookmarks') {
+    mainContent = html`
+       <${Feed} 
+          entries=${displayEntries} 
+          setEntries=${setEntries} 
+          userProfile=${userProfile}
+          onProfileClick=${() => setIsMobileOpen(true)}
+          aiSettings=${aiSettings}
+          viewTitle=${viewTitle}
+          onDelete=${handleDelete}
+          onToggleLike=${handleToggleLike}
+          onToggleBookmark=${handleToggleBookmark}
+          isBookmarkView=${view === 'bookmarks'}
+        />
+    `;
+  } else if (view === 'profile') {
+    mainContent = html`
+        <${Profile} 
+          userProfile=${userProfile} 
+          entries=${entries}
+          setEntries=${setEntries}
+          aiSettings=${aiSettings}
+          onBackClick=${() => setView('home')}
+          onDrawerOpen=${() => setIsMobileOpen(true)}
+          onDelete=${handleDelete}
+          onToggleLike=${handleToggleLike}
+          onToggleBookmark=${handleToggleBookmark}
+        />
+    `;
+  } else if (view === 'messages') {
+    mainContent = html`
+        <${Messages} 
+           aiSettings=${aiSettings}
+           onBackClick=${() => setView('home')}
+        />
+    `;
+  } else {
+    // Catch-all for new UI items (Explore, Notifications, Grok, etc.)
+    const titleMap = {
+      'explore': 'Explore',
+      'notifications': 'Notifications',
+      'grok': 'Grok',
+      'lists': 'Lists',
+      'communities': 'Communities',
+      'premium': 'Premium',
+      'more': 'More'
+    };
+    mainContent = html`<${PlaceholderView} title=${titleMap[view] || 'Page'} />`;
+  }
+
   return html`
     <div 
         className="bg-white min-h-screen text-black"
@@ -111,7 +176,7 @@ const App = () => {
         onTouchMove=${onTouchMove}
         onTouchEnd=${onTouchEnd}
     >
-      <div className="max-w-[1265px] mx-auto flex justify-center">
+      <div className="max-w-[1265px] mx-auto flex">
         <!-- Left Sidebar -->
         <${Sidebar} 
           onComposeClick=${handleComposeClick} 
@@ -123,37 +188,10 @@ const App = () => {
         />
 
         <!-- Main Content Area -->
-        ${(view === 'home' || view === 'bookmarks') && html`
-           <${Feed} 
-              entries=${displayEntries} 
-              setEntries=${setEntries} 
-              userProfile=${userProfile}
-              onProfileClick=${() => setIsMobileOpen(true)}
-              aiSettings=${aiSettings}
-              viewTitle=${viewTitle}
-              onDelete=${handleDelete}
-              onToggleLike=${handleToggleLike}
-              onToggleBookmark=${handleToggleBookmark}
-              isBookmarkView=${view === 'bookmarks'}
-            />
-        `}
-
-        ${view === 'profile' && html`
-            <${Profile} 
-              userProfile=${userProfile} 
-              entries=${entries}
-              setEntries=${setEntries}
-              aiSettings=${aiSettings}
-              onBackClick=${() => setView('home')}
-              onDrawerOpen=${() => setIsMobileOpen(true)}
-              onDelete=${handleDelete}
-              onToggleLike=${handleToggleLike}
-              onToggleBookmark=${handleToggleBookmark}
-            />
-        `}
+        ${mainContent}
 
         <!-- Right Widgets -->
-        <${Widgets} entries=${entries} />
+        ${view !== 'messages' && html`<${Widgets} entries=${entries} />`}
       </div>
     </div>
   `;

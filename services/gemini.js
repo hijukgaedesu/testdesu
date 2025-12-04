@@ -11,22 +11,24 @@ const getClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-export const analyzeDiaryEntry = async (text, mood) => {
+// Modified to accept a specific AI configuration
+export const analyzeDiaryEntry = async (text, mood, aiConfig) => {
   const client = getClient();
   if (!client) return { reply: "API Key is missing.", tags: [] };
 
-  const aiConfig = getAISettings();
+  // Fallback if no config passed
+  const persona = aiConfig?.persona || "You are a helpful AI.";
 
   try {
     const prompt = `
-      ${aiConfig.persona}
+      ${persona}
       
       User's Diary Entry (Mood: ${mood}):
       "${text}"
       
       Task:
       1. Write a reply (mention) to this entry based on your persona.
-      2. Generate 3 relevant hashtags.
+      2. Generate 3 relevant hashtags (just for internal logic, even if not displayed).
 
       Response Format: JSON
     `;
@@ -60,5 +62,36 @@ export const analyzeDiaryEntry = async (text, mood) => {
       reply: "The AI companion is currently unavailable. Your day matters!",
       tags: ["#diary", "#life", "#error"]
     };
+  }
+};
+
+export const getChatResponse = async (history, aiConfig) => {
+  const client = getClient();
+  if (!client) return "API Key is missing or invalid.";
+
+  try {
+    // Filter history for current chat session logic (simplified here)
+    // In a real app we'd filter strictly by threadId/aiId before passing here
+    
+    const previousHistory = history.slice(0, -1).map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }]
+    }));
+
+    const lastMessage = history[history.length - 1].text;
+
+    const chat = client.chats.create({
+      model: 'gemini-2.5-flash',
+      history: previousHistory,
+      config: {
+        systemInstruction: aiConfig.persona,
+      },
+    });
+
+    const result = await chat.sendMessage(lastMessage);
+    return result.text;
+  } catch (error) {
+    console.error("Gemini chat failed:", error);
+    return "I'm having trouble connecting right now. Please try again later.";
   }
 };

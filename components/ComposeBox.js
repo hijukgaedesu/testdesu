@@ -4,7 +4,7 @@ import htm from 'htm';
 import { Image, Smile, Calendar, MapPin, X } from 'lucide-react';
 import { Mood } from '../types.js';
 import { analyzeDiaryEntry } from '../services/gemini.js';
-import { saveEntry } from '../services/storage.js';
+import { saveEntry, getAISettings } from '../services/storage.js';
 
 const html = htm.bind(React.createElement);
 
@@ -56,14 +56,18 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
     };
 
     try {
-      // 1. Get AI analysis
-      // Pass image boolean to AI if needed, but currently only text analysis
-      const analysis = await analyzeDiaryEntry(inputText, selectedMood);
+      // Get current AI settings to find the active AI
+      const aiSettings = getAISettings();
+      const activeAi = aiSettings.ais.find(ai => ai.id === aiSettings.activeAiId) || aiSettings.ais[0];
+
+      // 1. Get AI analysis using the ACTIVE AI
+      const analysis = await analyzeDiaryEntry(inputText, selectedMood, activeAi);
       
       const finalEntry = {
         ...tempEntry,
         aiResponse: analysis.reply,
-        aiAnalysisTags: analysis.tags
+        aiAnalysisTags: analysis.tags, // Stored but not displayed in Feed per request
+        aiId: activeAi.id // Store which AI replied
       };
 
       const updatedEntries = saveEntry(finalEntry);
@@ -128,12 +132,8 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
                 </button>
             </div>
           `}
-
-          ${isAnalyzing && html`
-            <div className="text-[#1d9bf0] text-sm animate-pulse mb-2">
-              Gemini is replying... 
-            </div>
-          `}
+          
+          <!-- Removed "Gemini is replying..." text as requested -->
 
           <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-2">
             <div className="flex gap-0 sm:gap-2 text-[#1d9bf0]">

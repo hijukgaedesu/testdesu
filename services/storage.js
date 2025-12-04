@@ -1,7 +1,8 @@
 
 const STORAGE_KEY_ENTRIES = 'haru_tweet_entries';
 const STORAGE_KEY_USER = 'haru_tweet_user';
-const STORAGE_KEY_AI = 'haru_tweet_ai_config';
+const STORAGE_KEY_AI = 'haru_tweet_ai_config_v2'; // Changed key to force migration/reset for new structure
+const STORAGE_KEY_MESSAGES = 'haru_tweet_messages';
 
 export const getStoredEntries = () => {
   try {
@@ -51,6 +52,23 @@ export const toggleEntryBookmark = (id) => {
   return updated;
 };
 
+// Chat Messages Storage
+export const getStoredMessages = () => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_MESSAGES);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const saveMessage = (message) => {
+  const current = getStoredMessages();
+  const updated = [...current, message];
+  localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
+  return updated;
+};
+
 export const getUserProfile = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY_USER);
@@ -70,23 +88,38 @@ export const getUserProfile = () => {
   }
 };
 
+// Updated to support 2 AIs
+const DEFAULT_AIS = [
+  {
+    id: 1,
+    name: 'Gemini',
+    handle: '@gemini_official',
+    persona: 'You are a helpful and intelligent AI assistant provided by Google. You are polite, concise, and informative.',
+    avatarUrl: '' // Default bot icon
+  },
+  {
+    id: 2,
+    name: 'Bestie',
+    handle: '@your_bestie',
+    persona: 'You are an empathetic, cheerful, and casual close friend. You use emojis often, speak informally, and always cheer the user up.',
+    avatarUrl: ''
+  }
+];
+
 export const getAISettings = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY_AI);
-    const parsed = data ? JSON.parse(data) : {};
-    return {
-      name: parsed.name || 'Gemini AI',
-      handle: parsed.handle || '@gemini_companion',
-      persona: parsed.persona || 'You are an empathetic AI companion acting as a close friend on a social media platform. Your tone is warm, casual, and supportive.',
-      avatarUrl: parsed.avatarUrl || '' // Default empty
-    };
+    if (!data) {
+        return { ais: DEFAULT_AIS, activeAiId: 1 };
+    }
+    const parsed = JSON.parse(data);
+    // Backward compatibility check
+    if (!parsed.ais) {
+        return { ais: DEFAULT_AIS, activeAiId: 1 };
+    }
+    return parsed;
   } catch {
-    return {
-      name: 'Gemini AI',
-      handle: '@gemini_companion',
-      persona: 'You are an empathetic AI companion acting as a close friend on a social media platform. Your tone is warm, casual, and supportive.',
-      avatarUrl: ''
-    };
+    return { ais: DEFAULT_AIS, activeAiId: 1 };
   }
 };
 

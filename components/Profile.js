@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal.js';
 import { ComposeBox } from './ComposeBox.js';
 import { Mood } from '../types.js';
@@ -15,25 +15,34 @@ export const Profile = ({
     setEntries, 
     onBackClick, 
     onDrawerOpen, 
-    aiSettings,
+    aiSettings, // now contains { ais: [], activeAiId: number }
     onDelete,
     onToggleLike,
     onToggleBookmark
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('posts'); // posts, replies, media, likes, ai_settings
+  const [activeTab, setActiveTab] = useState('posts'); 
   
-  // AI Settings State
-  const [aiConfig, setAiConfig] = useState(aiSettings || { name: '', handle: '', persona: '', avatarUrl: '' });
+  // AI Settings State: Config object containing both AIs and active ID
+  const [localAiSettings, setLocalAiSettings] = useState(aiSettings);
+  // Which AI we are currently editing in the form
+  const [editingAiId, setEditingAiId] = useState(1);
+
   const aiAvatarInputRef = useRef(null);
 
   useEffect(() => {
     if (aiSettings) {
-        setAiConfig(aiSettings);
+        setLocalAiSettings(aiSettings);
+        if (!editingAiId && aiSettings.ais.length > 0) {
+            setEditingAiId(aiSettings.ais[0].id);
+        }
     }
   }, [aiSettings]);
 
-  // Filter entries
+  // Helper: Get the AI object currently being edited
+  const currentEditingAi = localAiSettings.ais?.find(ai => ai.id === editingAiId) || {};
+
+  // Filter entries for Profile Feed
   let displayedEntries = entries;
   if (activeTab === 'likes') {
       displayedEntries = entries.filter(e => e.isLiked);
@@ -41,7 +50,12 @@ export const Profile = ({
 
   const handleAiConfigChange = (e) => {
     const { name, value } = e.target;
-    setAiConfig(prev => ({ ...prev, [name]: value }));
+    setLocalAiSettings(prev => {
+        const updatedAis = prev.ais.map(ai => 
+            ai.id === editingAiId ? { ...ai, [name]: value } : ai
+        );
+        return { ...prev, ais: updatedAis };
+    });
   };
 
   const handleAiAvatarUpload = (e) => {
@@ -49,14 +63,23 @@ export const Profile = ({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAiConfig(prev => ({ ...prev, avatarUrl: reader.result }));
+        setLocalAiSettings(prev => {
+            const updatedAis = prev.ais.map(ai => 
+                ai.id === editingAiId ? { ...ai, avatarUrl: reader.result } : ai
+            );
+            return { ...prev, ais: updatedAis };
+        });
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const setAsActiveAi = (id) => {
+      setLocalAiSettings(prev => ({ ...prev, activeAiId: id }));
+  };
+
   const saveAiConfig = () => {
-    saveAISettings(aiConfig);
+    saveAISettings(localAiSettings);
     window.dispatchEvent(new Event('aiSettingsUpdated'));
     alert('AI Settings Saved!');
   };
@@ -76,6 +99,14 @@ export const Profile = ({
         default: return html`<span className="text-gray-400">😐</span>`;
     }
  };
+
+  // Helper to find AI info for display in feed
+  const getAiForEntry = (entry) => {
+    if (entry.aiId && aiSettings?.ais) {
+        return aiSettings.ais.find(ai => ai.id === entry.aiId) || aiSettings.ais[0];
+    }
+    return aiSettings?.ais ? aiSettings.ais[0] : { name: 'AI', handle: '@ai' };
+  };
 
   return html`
     <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full">
@@ -183,7 +214,9 @@ export const Profile = ({
             />
         `}
         <div>
-            ${displayedEntries.map((entry) => html`
+            ${displayedEntries.map((entry) => {
+                const replyAi = getAiForEntry(entry);
+                return html`
                 <div key=${entry.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative">
                     ${entry.aiResponse && html`
                         <div className="absolute left-[34px] top-[50px] bottom-[20px] w-0.5 bg-gray-200 z-0"></div>
@@ -217,6 +250,7 @@ export const Profile = ({
                                 </div>
                             `}
 
+                            <!-- Mood (Blue tags removed) -->
                             <div className="mt-2 text-sm text-gray-500 flex gap-2">
                                 <span>Mood: <${MoodIcon} mood=${entry.mood} /></span>
                             </div>
@@ -261,8 +295,8 @@ export const Profile = ({
                                 <div className="mt-3 pt-1">
                                     <div className="flex gap-3">
                                         <div className="w-8 h-8 flex-shrink-0">
-                                            ${aiSettings?.avatarUrl 
-                                              ? html`<img src=${aiSettings.avatarUrl} className="w-8 h-8 rounded-full object-cover border border-gray-200" />`
+                                            ${replyAi.avatarUrl 
+                                              ? html`<img src=${replyAi.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
                                               : html`
                                                   <div className="w-full h-full bg-[#1d9bf0] p-1.5 rounded-full text-white flex items-center justify-center">
                                                       <${Bot} size=${16} />
@@ -272,7 +306,7 @@ export const Profile = ({
                                         </div>
                                         <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold text-black text-sm">${aiSettings?.name || 'Gemini AI'}</span>
+                                                <span className="font-bold text-black text-sm">${replyAi.name}</span>
                                             </div>
                                             <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
                                         </div>
@@ -282,7 +316,8 @@ export const Profile = ({
                         </div>
                     </div>
                 </div>
-            `)}
+            `;
+            })}
              <div className="h-40 text-center text-gray-500 py-10">
                 ${displayedEntries.length === 0 ? 'Nothing here.' : 'No more posts.'}
             </div>
@@ -291,16 +326,44 @@ export const Profile = ({
 
       ${activeTab === 'ai_settings' && html`
         <div className="p-6">
-            <h3 className="text-xl font-bold mb-4">Configure AI Companion</h3>
+            <h3 className="text-xl font-bold mb-4">AI Configuration</h3>
+            
+            <!-- AI Selector Tabs -->
+            <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-lg">
+                ${localAiSettings.ais.map(ai => html`
+                    <button 
+                        key=${ai.id}
+                        onClick=${() => setEditingAiId(ai.id)}
+                        className=${`flex-1 py-2 rounded-md font-medium text-sm transition-colors ${editingAiId === ai.id ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                    >
+                        ${ai.name || `AI ${ai.id}`}
+                    </button>
+                `)}
+            </div>
+
+            <!-- Active Toggle -->
+            <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
+                <div>
+                    <h4 className="font-bold text-[#1d9bf0]">Active Feed Companion</h4>
+                    <p className="text-xs text-gray-600">This AI will automatically reply to your posts in the Feed.</p>
+                </div>
+                <button 
+                    onClick=${() => setAsActiveAi(editingAiId)}
+                    className=${`w-6 h-6 rounded-full border-2 flex items-center justify-center ${localAiSettings.activeAiId === editingAiId ? 'bg-[#1d9bf0] border-[#1d9bf0]' : 'border-gray-300'}`}
+                >
+                     ${localAiSettings.activeAiId === editingAiId && html`<${CheckCircle} size=${16} className="text-white" />`}
+                </button>
+            </div>
+
             <div className="flex flex-col gap-6">
                  
                  <!-- AI Avatar Upload -->
                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-gray-500 block">AI Avatar</label>
+                    <label className="text-xs text-gray-500 block">Avatar</label>
                     <div className="flex items-center gap-4">
                         <div className="relative group w-20 h-20">
-                            ${aiConfig.avatarUrl 
-                                ? html`<img src=${aiConfig.avatarUrl} className="w-full h-full rounded-full object-cover border border-gray-200" />`
+                            ${currentEditingAi.avatarUrl 
+                                ? html`<img src=${currentEditingAi.avatarUrl} className="w-full h-full rounded-full object-cover border border-gray-200" />`
                                 : html`<div className="w-full h-full rounded-full bg-gray-200 flex items-center justify-center text-gray-500"><${Bot} size=${32} /></div>`
                             }
                             <button 
@@ -324,29 +387,28 @@ export const Profile = ({
                                 accept="image/*" 
                                 className="hidden" 
                             />
-                            <p className="text-xs text-gray-400 mt-1">Recommended: Square image</p>
                         </div>
                     </div>
                  </div>
 
                  <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative group">
-                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">AI Name</label>
+                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">Name</label>
                     <input 
                         type="text"
                         name="name"
-                        value=${aiConfig.name}
+                        value=${currentEditingAi.name || ''}
                         onChange=${handleAiConfigChange}
                         className="w-full bg-transparent text-black outline-none py-1"
-                        placeholder="e.g. Jarvis, Bestie"
+                        placeholder="e.g. Jarvis"
                     />
                 </div>
                 
                  <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative group">
-                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">AI Twitter Handle</label>
+                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">Handle</label>
                     <input 
                         type="text"
                         name="handle"
-                        value=${aiConfig.handle}
+                        value=${currentEditingAi.handle || ''}
                         onChange=${handleAiConfigChange}
                         className="w-full bg-transparent text-black outline-none py-1"
                         placeholder="e.g. @ai_friend"
@@ -354,10 +416,10 @@ export const Profile = ({
                 </div>
 
                 <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] p-2 relative group">
-                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">AI Persona / System Prompt</label>
+                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">Persona / System Prompt</label>
                     <textarea 
                         name="persona"
-                        value=${aiConfig.persona}
+                        value=${currentEditingAi.persona || ''}
                         onChange=${handleAiConfigChange}
                         className="w-full bg-transparent text-black outline-none mt-1 resize-none h-[150px]"
                         placeholder="Describe how the AI should behave..."

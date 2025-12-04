@@ -36,6 +36,15 @@ export const Feed = ({
      }
   };
 
+  // Helper to find the AI config for a specific entry
+  const getAiForEntry = (entry) => {
+      // If entry has aiId, find it. Else fallback to active or first.
+      if (entry.aiId && aiSettings?.ais) {
+          return aiSettings.ais.find(ai => ai.id === entry.aiId) || aiSettings.ais[0];
+      }
+      return aiSettings?.ais ? aiSettings.ais[0] : { name: 'AI', handle: '@ai' };
+  };
+
   return html`
     <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full">
       <!-- Header -->
@@ -60,7 +69,9 @@ export const Feed = ({
 
       <!-- Feed List -->
       <div>
-        ${entries.map((entry) => html`
+        ${entries.map((entry) => {
+          const replyAi = getAiForEntry(entry);
+          return html`
           <div key=${entry.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative group">
             <!-- Connector Line if AI Replied -->
             ${entry.aiResponse && html`
@@ -101,14 +112,11 @@ export const Feed = ({
                     </div>
                 `}
 
-                <!-- Mood & Tags -->
+                <!-- Mood Only (Blue tags removed) -->
                 <div className="flex flex-wrap gap-2 mt-3">
                     <span className="bg-gray-100 border border-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full flex items-center gap-1">
                         Mood: <${MoodIcon} mood=${entry.mood} />
                     </span>
-                    ${entry.aiAnalysisTags?.map(tag => html`
-                        <span key=${tag} className="text-[#1d9bf0] text-sm hover:underline">${tag}</span>
-                    `)}
                 </div>
 
                 <!-- Action Bar -->
@@ -151,8 +159,8 @@ export const Feed = ({
                     <div className="mt-4 pt-0">
                         <div className="flex gap-3">
                             <div className="w-10 flex flex-col items-center">
-                                ${aiSettings?.avatarUrl 
-                                  ? html`<img src=${aiSettings.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
+                                ${replyAi.avatarUrl 
+                                  ? html`<img src=${replyAi.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
                                   : html`
                                       <div className="bg-[#1d9bf0] p-1.5 rounded-full text-white">
                                           <${Bot} size=${20} />
@@ -162,8 +170,8 @@ export const Feed = ({
                             </div>
                             <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3 relative">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-bold text-black text-sm">${aiSettings?.name || 'Gemini AI'}</span>
-                                    <span className="text-gray-500 text-xs">${aiSettings?.handle || '@gemini_companion'}</span>
+                                    <span className="font-bold text-black text-sm">${replyAi.name}</span>
+                                    <span className="text-gray-500 text-xs">${replyAi.handle}</span>
                                 </div>
                                 <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
                             </div>
@@ -174,7 +182,7 @@ export const Feed = ({
               </div>
             </div>
           </div>
-        `)}
+        `})}
         <div className="h-40 text-center text-gray-500 py-10">
             ${entries.length === 0 ? 'No entries found.' : 'No more entries.'}
         </div>
