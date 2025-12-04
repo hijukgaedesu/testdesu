@@ -1,8 +1,8 @@
 
+
 import React from 'react';
 import htm from 'htm';
-import { MessageCircle, Repeat, Heart, BarChart2, Share, Trash2, Bot, Bookmark } from 'lucide-react';
-import { Mood } from '../types.js';
+import { MessageCircle, Heart, Share, Trash2, Bot, Bookmark } from 'lucide-react';
 import { ComposeBox } from './ComposeBox.js';
 
 const html = htm.bind(React.createElement);
@@ -17,6 +17,10 @@ export const Feed = ({
     onDelete, 
     onToggleLike, 
     onToggleBookmark,
+    onToggleAiLike,
+    onToggleAiBookmark,
+    onDeleteAiReply,
+    onTagClick,
     isBookmarkView = false
 }) => {
   
@@ -26,14 +30,10 @@ export const Feed = ({
     }
   };
 
-  const MoodIcon = ({ mood }) => {
-     switch(mood) {
-         case Mood.Happy: return html`<span className="text-yellow-400">😊</span>`;
-         case Mood.Excited: return html`<span className="text-orange-400">🤩</span>`;
-         case Mood.Sad: return html`<span className="text-blue-400">😢</span>`;
-         case Mood.Angry: return html`<span className="text-red-500">😡</span>`;
-         default: return html`<span className="text-gray-400">😐</span>`;
-     }
+  const handleAiDeleteCheck = (id) => {
+    if (confirm('Are you sure you want to delete this AI reply?')) {
+      onDeleteAiReply(id);
+    }
   };
 
   // Helper to find the AI config for a specific entry
@@ -58,8 +58,8 @@ export const Feed = ({
         </div>
       </div>
 
-      <!-- Compose Box (Only on Home) -->
-      ${!isBookmarkView && html`
+      <!-- Compose Box (Only on Home and not in filtered view) -->
+      ${!isBookmarkView && viewTitle === 'Home' && html`
         <${ComposeBox} 
             userProfile=${userProfile} 
             onPostSuccess=${setEntries} 
@@ -91,15 +91,6 @@ export const Feed = ({
                             ${new Date(entry.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                     </div>
-                    <div className="flex items-center">
-                        <button 
-                            onClick=${(e) => { e.stopPropagation(); handleDeleteCheck(entry.id); }}
-                            className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2"
-                            title="Delete"
-                        >
-                            <${Trash2} size=${16} />
-                        </button>
-                    </div>
                 </div>
 
                 <!-- Content -->
@@ -112,14 +103,22 @@ export const Feed = ({
                     </div>
                 `}
 
-                <!-- Mood Only (Blue tags removed) -->
-                <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="bg-gray-100 border border-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                        Mood: <${MoodIcon} mood=${entry.mood} />
-                    </span>
-                </div>
+                <!-- Tags -->
+                ${entry.aiAnalysisTags && entry.aiAnalysisTags.length > 0 && html`
+                    <div className="flex flex-wrap gap-2 mt-3">
+                        ${entry.aiAnalysisTags.map(tag => html`
+                            <span 
+                                key=${tag} 
+                                onClick=${(e) => { e.stopPropagation(); onTagClick && onTagClick(tag); }}
+                                className="text-[#1d9bf0] text-sm hover:underline cursor-pointer"
+                            >
+                                ${tag}
+                            </span>
+                        `)}
+                    </div>
+                `}
 
-                <!-- Action Bar -->
+                <!-- User Action Bar -->
                 <div className="flex justify-between max-w-[425px] mt-3 text-gray-500">
                   <div className="flex items-center gap-1 group/action cursor-pointer hover:text-[#1d9bf0]">
                     <div className="p-2 rounded-full group-hover/action:bg-blue-50 transition-colors">
@@ -152,6 +151,16 @@ export const Feed = ({
                         <${Share} size=${18} />
                     </div>
                   </div>
+                  
+                  <div 
+                    onClick=${(e) => { e.stopPropagation(); handleDeleteCheck(entry.id); }}
+                    className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
+                    title="Delete Post"
+                  >
+                    <div className="p-2 rounded-full group-hover/action:bg-red-50 transition-colors">
+                         <${Trash2} size=${18} />
+                    </div>
+                  </div>
                 </div>
 
                 <!-- AI Reply Section (Thread style) -->
@@ -174,6 +183,31 @@ export const Feed = ({
                                     <span className="text-gray-500 text-xs">${replyAi.handle}</span>
                                 </div>
                                 <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
+                                
+                                <!-- AI Action Bar -->
+                                <div className="flex gap-4 mt-3 text-gray-500">
+                                    <div 
+                                        className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
+                                        onClick=${(e) => { e.stopPropagation(); onToggleAiLike(entry.id); }}
+                                    >
+                                        <${Heart} size=${14} className=${entry.aiIsLiked ? 'fill-current' : ''} />
+                                    </div>
+
+                                    <div 
+                                        className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
+                                        onClick=${(e) => { e.stopPropagation(); onToggleAiBookmark(entry.id); }}
+                                    >
+                                        <${Bookmark} size=${14} className=${entry.aiIsBookmarked ? 'fill-current' : ''} />
+                                    </div>
+                                    
+                                    <div 
+                                        className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
+                                        onClick=${(e) => { e.stopPropagation(); handleAiDeleteCheck(entry.id); }}
+                                        title="Delete Reply"
+                                    >
+                                        <${Trash2} size=${14} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -184,7 +218,7 @@ export const Feed = ({
           </div>
         `})}
         <div className="h-40 text-center text-gray-500 py-10">
-            ${entries.length === 0 ? 'No entries found.' : 'No more entries.'}
+            ${entries.length === 0 ? 'No posts found.' : 'No more posts.'}
         </div>
       </div>
     </div>

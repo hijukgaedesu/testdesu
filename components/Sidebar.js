@@ -1,7 +1,7 @@
 
 import React from 'react';
 import htm from 'htm';
-import { Home, Bell, Mail, Bookmark, User, MoreHorizontal, PenTool, X as XIcon } from 'lucide-react';
+import { Home, Bell, Mail, Bookmark, User, MoreHorizontal, PenTool, X as XIcon, Settings } from 'lucide-react';
 
 const html = htm.bind(React.createElement);
 
@@ -17,13 +17,14 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
 
   // Navigation Items Configuration
   // Removed: Explore(Search), Grok, Lists, Communities, Premium
+  // Changed: More -> Settings (icon changed, label changed)
   const navItems = [
     { id: 'home', icon: Home, label: 'Home' },
     { id: 'notifications', icon: Bell, label: 'Notifications' },
     { id: 'messages', icon: Mail, label: 'Messages' },
     { id: 'bookmarks', icon: Bookmark, label: 'Bookmarks' },
     { id: 'profile', icon: User, label: 'Profile' },
-    { id: 'more', icon: MoreHorizontal, label: 'More' },
+    { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
   return html`
@@ -62,10 +63,8 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
             onClick=${() => { onChangeView('home'); onCloseMobile(); }}
             className="hidden sm:block p-3 mb-2 rounded-full hover:bg-gray-200 w-fit cursor-pointer transition-colors"
           >
-            <!-- X Logo (Blackboard Bold X path) -->
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-8 w-8 text-black fill-current">
-              <g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></g>
-            </svg>
+            <!-- Star Emoji -->
+            <div className="w-8 h-8 flex items-center justify-center text-2xl">⭐</div>
           </div>
 
           <!-- Navigation Items -->

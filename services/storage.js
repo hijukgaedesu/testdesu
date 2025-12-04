@@ -1,7 +1,10 @@
 
+// Removed unused imports to prevent export errors
+// import { DiaryEntry, UserProfile } from '../types';
+
 const STORAGE_KEY_ENTRIES = 'haru_tweet_entries';
 const STORAGE_KEY_USER = 'haru_tweet_user';
-const STORAGE_KEY_AI = 'haru_tweet_ai_config_v2'; // Changed key to force migration/reset for new structure
+const STORAGE_KEY_AI = 'haru_tweet_ai_config_v2'; 
 const STORAGE_KEY_MESSAGES = 'haru_tweet_messages';
 
 export const getStoredEntries = () => {
@@ -52,6 +55,46 @@ export const toggleEntryBookmark = (id) => {
   return updated;
 };
 
+// AI Interactions
+export const toggleAiLike = (id) => {
+  const current = getStoredEntries();
+  const updated = current.map(entry => {
+    if (entry.id === id) {
+      return { ...entry, aiIsLiked: !entry.aiIsLiked };
+    }
+    return entry;
+  });
+  localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(updated));
+  return updated;
+};
+
+export const toggleAiBookmark = (id) => {
+  const current = getStoredEntries();
+  const updated = current.map(entry => {
+    if (entry.id === id) {
+      return { ...entry, aiIsBookmarked: !entry.aiIsBookmarked };
+    }
+    return entry;
+  });
+  localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteAiReply = (id) => {
+  const current = getStoredEntries();
+  const updated = current.map(entry => {
+    if (entry.id === id) {
+      // Remove AI response fields
+      const { aiResponse, aiId, aiIsLiked, aiIsBookmarked, ...rest } = entry;
+      return rest;
+    }
+    return entry;
+  });
+  localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(updated));
+  return updated;
+};
+
+
 // Chat Messages Storage
 export const getStoredMessages = () => {
   try {
@@ -65,6 +108,13 @@ export const getStoredMessages = () => {
 export const saveMessage = (message) => {
   const current = getStoredMessages();
   const updated = [...current, message];
+  localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteMessage = (id) => {
+  const current = getStoredMessages();
+  const updated = current.filter(m => m.id !== id);
   localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
   return updated;
 };

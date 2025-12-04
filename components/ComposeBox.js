@@ -1,8 +1,8 @@
 
+
 import React, { useState, useRef } from 'react';
 import htm from 'htm';
-import { Image, Smile, Calendar, MapPin, X } from 'lucide-react';
-import { Mood } from '../types.js';
+import { Image, Calendar, MapPin, X } from 'lucide-react';
 import { analyzeDiaryEntry } from '../services/gemini.js';
 import { saveEntry, getAISettings } from '../services/storage.js';
 
@@ -10,7 +10,6 @@ const html = htm.bind(React.createElement);
 
 export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
   const [inputText, setInputText] = useState('');
-  const [selectedMood, setSelectedMood] = useState(Mood.Neutral);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const fileInputRef = useRef(null);
@@ -42,17 +41,27 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Helper to extract hashtags
+  const extractHashtags = (text) => {
+    const matches = text.match(/#[^\s#.,;!?]+/g);
+    return matches || [];
+  };
+
   const handlePost = async () => {
     if (!inputText.trim() && !attachedImage) return;
 
     setIsAnalyzing(true);
     const newEntryId = Date.now().toString();
+    
+    // Extract hashtags immediately from user input
+    const hashtags = extractHashtags(inputText);
+
     const tempEntry = {
       id: newEntryId,
       content: inputText,
       createdAt: Date.now(),
-      mood: selectedMood,
-      imageUrl: attachedImage
+      imageUrl: attachedImage,
+      aiAnalysisTags: hashtags // Save manual hashtags
     };
 
     try {
@@ -61,20 +70,18 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
       const activeAi = aiSettings.ais.find(ai => ai.id === aiSettings.activeAiId) || aiSettings.ais[0];
 
       // 1. Get AI analysis using the ACTIVE AI
-      const analysis = await analyzeDiaryEntry(inputText, selectedMood, activeAi);
+      const analysis = await analyzeDiaryEntry(inputText, activeAi);
       
       const finalEntry = {
         ...tempEntry,
         aiResponse: analysis.reply,
-        aiAnalysisTags: analysis.tags, // Stored but not displayed in Feed per request
-        aiId: activeAi.id // Store which AI replied
+        aiId: activeAi.id 
       };
 
       const updatedEntries = saveEntry(finalEntry);
       onPostSuccess(updatedEntries); 
       setInputText('');
       setAttachedImage(null);
-      setSelectedMood(Mood.Neutral);
       if (fileInputRef.current) fileInputRef.current.value = '';
       
       // Reset height
@@ -91,16 +98,6 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
     } finally {
       setIsAnalyzing(false);
     }
-  };
-
-  const MoodIcon = ({ mood }) => {
-     switch(mood) {
-         case Mood.Happy: return html`<span className="text-yellow-400">😊</span>`;
-         case Mood.Excited: return html`<span className="text-orange-400">🤩</span>`;
-         case Mood.Sad: return html`<span className="text-blue-400">😢</span>`;
-         case Mood.Angry: return html`<span className="text-red-500">😡</span>`;
-         default: return html`<span className="text-gray-400">😐</span>`;
-     }
   };
 
   return html`
@@ -133,29 +130,8 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
             </div>
           `}
           
-          <!-- Removed "Gemini is replying..." text as requested -->
-
           <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-2">
             <div className="flex gap-0 sm:gap-2 text-[#1d9bf0]">
-               <!-- Mood Selector -->
-               <div className="relative group">
-                 <button className="p-2 hover:bg-blue-50 rounded-full transition-colors">
-                   <${Smile} size=${20} />
-                 </button>
-                 <div className="absolute top-full left-0 bg-white border border-gray-200 shadow-lg rounded-lg p-2 flex gap-2 hidden group-hover:flex z-20">
-                    ${Object.values(Mood).map((m) => html`
-                        <button 
-                            key=${m} 
-                            onClick=${() => setSelectedMood(m)}
-                            className=${`p-2 rounded hover:bg-gray-100 ${selectedMood === m ? 'bg-blue-50' : ''}`}
-                            title=${m}
-                        >
-                            <${MoodIcon} mood=${m} />
-                        </button>
-                    `)}
-                 </div>
-               </div>
-               
                <input 
                  type="file" 
                  accept="image/*" 
@@ -169,9 +145,6 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
             </div>
             
             <div className="flex items-center gap-3 sm:gap-4">
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                   <span className="hidden sm:inline">Mood:</span> <${MoodIcon} mood=${selectedMood} />
-                </div>
                 <button
                     onClick=${handlePost}
                     disabled=${(!inputText.trim() && !attachedImage) || isAnalyzing}

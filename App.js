@@ -6,7 +6,7 @@ import { Feed } from './components/Feed.js';
 import { Widgets } from './components/Widgets.js';
 import { Profile } from './components/Profile.js';
 import { Messages } from './components/Messages.js';
-import { getStoredEntries, getUserProfile, getAISettings, deleteEntry, toggleEntryLike, toggleEntryBookmark } from './services/storage.js';
+import { getStoredEntries, getUserProfile, getAISettings, deleteEntry, toggleEntryLike, toggleEntryBookmark, toggleAiLike, toggleAiBookmark, deleteAiReply } from './services/storage.js';
 
 const html = htm.bind(React.createElement);
 
@@ -28,6 +28,9 @@ const App = () => {
   const [userProfile, setUserProfile] = useState(getUserProfile());
   const [aiSettings, setAiSettings] = useState(getAISettings());
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  
+  // State for filtering by tag
+  const [currentTag, setCurrentTag] = useState(null);
   
   // Swipe detection
   const touchStartRef = useRef(null);
@@ -81,6 +84,7 @@ const App = () => {
 
   const handleComposeClick = () => {
     if (view !== 'home') setView('home');
+    setCurrentTag(null); // Clear filter
     // Wait for view change then focus
     setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -91,7 +95,19 @@ const App = () => {
 
   const handleProfileClick = () => {
     setView('profile');
+    setCurrentTag(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleChangeView = (newView) => {
+      setView(newView);
+      setCurrentTag(null); // Reset tag filter when changing main views
+  };
+
+  const handleTagClick = (tag) => {
+      setCurrentTag(tag);
+      setView('home'); // Go to home view to show list
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Actions
@@ -109,13 +125,34 @@ const App = () => {
       const updated = toggleEntryBookmark(id);
       setEntries(updated);
   };
+  
+  const handleToggleAiLike = (id) => {
+      const updated = toggleAiLike(id);
+      setEntries(updated);
+  };
+  
+  const handleToggleAiBookmark = (id) => {
+      const updated = toggleAiBookmark(id);
+      setEntries(updated);
+  };
+  
+  const handleDeleteAiReply = (id) => {
+      const updated = deleteAiReply(id);
+      setEntries(updated);
+  };
 
-  // Filter entries for Bookmarks view
-  const displayEntries = view === 'bookmarks' 
-    ? entries.filter(e => e.isBookmarked) 
-    : entries;
+  // Filter entries
+  let displayEntries = entries;
+  if (view === 'bookmarks') {
+      // Show entry if the User Post is bookmarked OR the AI Reply is bookmarked
+      displayEntries = entries.filter(e => e.isBookmarked || e.aiIsBookmarked);
+  } else if (currentTag) {
+      displayEntries = entries.filter(e => e.aiAnalysisTags && e.aiAnalysisTags.includes(currentTag));
+  }
 
-  const viewTitle = view === 'bookmarks' ? 'Bookmarks' : 'Home';
+  let viewTitle = 'Home';
+  if (view === 'bookmarks') viewTitle = 'Bookmarks';
+  else if (currentTag) viewTitle = `Results for ${currentTag}`;
 
   // Determine Main Content Content
   let mainContent;
@@ -131,10 +168,15 @@ const App = () => {
           onDelete=${handleDelete}
           onToggleLike=${handleToggleLike}
           onToggleBookmark=${handleToggleBookmark}
+          onToggleAiLike=${handleToggleAiLike}
+          onToggleAiBookmark=${handleToggleAiBookmark}
+          onDeleteAiReply=${handleDeleteAiReply}
+          onTagClick=${handleTagClick}
           isBookmarkView=${view === 'bookmarks'}
         />
     `;
-  } else if (view === 'profile') {
+  } else if (view === 'profile' || view === 'settings') {
+    const defaultTab = view === 'settings' ? 'ai_settings' : 'posts';
     mainContent = html`
         <${Profile} 
           userProfile=${userProfile} 
@@ -146,24 +188,24 @@ const App = () => {
           onDelete=${handleDelete}
           onToggleLike=${handleToggleLike}
           onToggleBookmark=${handleToggleBookmark}
+          onToggleAiLike=${handleToggleAiLike}
+          onToggleAiBookmark=${handleToggleAiBookmark}
+          onDeleteAiReply=${handleDeleteAiReply}
+          defaultTab=${defaultTab}
         />
     `;
   } else if (view === 'messages') {
     mainContent = html`
         <${Messages} 
            aiSettings=${aiSettings}
+           userProfile=${userProfile}
            onBackClick=${() => setView('home')}
         />
     `;
   } else {
-    // Catch-all for new UI items (Explore, Notifications, Grok, etc.)
+    // Catch-all for new UI items
     const titleMap = {
-      'explore': 'Explore',
       'notifications': 'Notifications',
-      'grok': 'Grok',
-      'lists': 'Lists',
-      'communities': 'Communities',
-      'premium': 'Premium',
       'more': 'More'
     };
     mainContent = html`<${PlaceholderView} title=${titleMap[view] || 'Page'} />`;
@@ -181,7 +223,7 @@ const App = () => {
         <${Sidebar} 
           onComposeClick=${handleComposeClick} 
           currentView=${view} 
-          onChangeView=${setView}
+          onChangeView=${handleChangeView}
           userProfile=${userProfile}
           isMobileOpen=${isMobileOpen}
           onCloseMobile=${() => setIsMobileOpen(false)}
@@ -191,7 +233,7 @@ const App = () => {
         ${mainContent}
 
         <!-- Right Widgets -->
-        ${view !== 'messages' && html`<${Widgets} entries=${entries} />`}
+        ${view !== 'messages' && html`<${Widgets} entries=${entries} onTagClick=${handleTagClick} />`}
       </div>
     </div>
   `;

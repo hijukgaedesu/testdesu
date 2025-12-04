@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal.js';
 import { ComposeBox } from './ComposeBox.js';
-import { Mood } from '../types.js';
 import { saveAISettings } from '../services/storage.js';
 
 const html = htm.bind(React.createElement);
@@ -15,17 +13,20 @@ export const Profile = ({
     setEntries, 
     onBackClick, 
     onDrawerOpen, 
-    aiSettings, // now contains { ais: [], activeAiId: number }
+    aiSettings, 
     onDelete,
     onToggleLike,
-    onToggleBookmark
+    onToggleBookmark,
+    onToggleAiLike,
+    onToggleAiBookmark,
+    onDeleteAiReply,
+    defaultTab 
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('posts'); 
+  const [activeTab, setActiveTab] = useState(defaultTab || 'posts'); 
   
-  // AI Settings State: Config object containing both AIs and active ID
+  // AI Settings State
   const [localAiSettings, setLocalAiSettings] = useState(aiSettings);
-  // Which AI we are currently editing in the form
   const [editingAiId, setEditingAiId] = useState(1);
 
   const aiAvatarInputRef = useRef(null);
@@ -39,13 +40,21 @@ export const Profile = ({
     }
   }, [aiSettings]);
 
+  // Update active tab when defaultTab changes (e.g. navigating from Sidebar)
+  useEffect(() => {
+    if (defaultTab) {
+        setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
+
   // Helper: Get the AI object currently being edited
   const currentEditingAi = localAiSettings.ais?.find(ai => ai.id === editingAiId) || {};
 
   // Filter entries for Profile Feed
   let displayedEntries = entries;
   if (activeTab === 'likes') {
-      displayedEntries = entries.filter(e => e.isLiked);
+      // Show entry if User Post is liked OR AI Reply is liked
+      displayedEntries = entries.filter(e => e.isLiked || e.aiIsLiked);
   }
 
   const handleAiConfigChange = (e) => {
@@ -90,15 +99,11 @@ export const Profile = ({
     }
   };
 
-  const MoodIcon = ({ mood }) => {
-    switch(mood) {
-        case Mood.Happy: return html`<span className="text-yellow-400">😊</span>`;
-        case Mood.Excited: return html`<span className="text-orange-400">🤩</span>`;
-        case Mood.Sad: return html`<span className="text-blue-400">😢</span>`;
-        case Mood.Angry: return html`<span className="text-red-500">😡</span>`;
-        default: return html`<span className="text-gray-400">😐</span>`;
+  const handleAiDeleteCheck = (id) => {
+    if (confirm('Are you sure you want to delete this AI reply?')) {
+      onDeleteAiReply(id);
     }
- };
+  };
 
   // Helper to find AI info for display in feed
   const getAiForEntry = (entry) => {
@@ -186,10 +191,6 @@ export const Profile = ({
             <span className=${activeTab === 'posts' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>Posts</span>
             ${activeTab === 'posts' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
          </div>
-         <div onClick=${() => setActiveTab('replies')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap">
-            <span className=${activeTab === 'replies' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>Replies</span>
-            ${activeTab === 'replies' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
-         </div>
          <div onClick=${() => setActiveTab('media')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap">
             <span className=${activeTab === 'media' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>Media</span>
              ${activeTab === 'media' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
@@ -231,15 +232,6 @@ export const Profile = ({
                                     <span className="text-gray-500 text-sm">·</span>
                                     <span className="text-gray-500 text-sm whitespace-nowrap">${new Date(entry.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                                 </div>
-                                <div className="flex items-center">
-                                    <button 
-                                        onClick=${(e) => { e.stopPropagation(); handleDeleteCheck(entry.id); }}
-                                        className="text-gray-400 hover:text-red-500 opacity-0 hover:opacity-100 transition-opacity p-2"
-                                        title="Delete"
-                                    >
-                                        <${Trash2} size=${16} />
-                                    </button>
-                                </div>
                             </div>
 
                             <p className="text-black mt-1 whitespace-pre-wrap break-words text-[15px] sm:text-base">${entry.content}</p>
@@ -249,11 +241,6 @@ export const Profile = ({
                                     <img src=${entry.imageUrl} alt="Attached" className="rounded-2xl max-h-[300px] w-full object-cover border border-gray-100" />
                                 </div>
                             `}
-
-                            <!-- Mood (Blue tags removed) -->
-                            <div className="mt-2 text-sm text-gray-500 flex gap-2">
-                                <span>Mood: <${MoodIcon} mood=${entry.mood} /></span>
-                            </div>
 
                             <!-- Action Bar -->
                             <div className="flex justify-between max-w-[425px] mt-3 text-gray-500">
@@ -288,6 +275,16 @@ export const Profile = ({
                                         <${Share} size=${18} />
                                     </div>
                                 </div>
+
+                                <div 
+                                    onClick=${(e) => { e.stopPropagation(); handleDeleteCheck(entry.id); }}
+                                    className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
+                                    title="Delete Post"
+                                >
+                                    <div className="p-2 rounded-full group-hover/action:bg-red-50 transition-colors">
+                                        <${Trash2} size=${18} />
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- AI Reply -->
@@ -309,6 +306,31 @@ export const Profile = ({
                                                 <span className="font-bold text-black text-sm">${replyAi.name}</span>
                                             </div>
                                             <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
+                                            
+                                            <!-- AI Action Bar -->
+                                            <div className="flex gap-4 mt-2 text-gray-500">
+                                                <div 
+                                                    className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
+                                                    onClick=${(e) => { e.stopPropagation(); onToggleAiLike(entry.id); }}
+                                                >
+                                                    <${Heart} size=${14} className=${entry.aiIsLiked ? 'fill-current' : ''} />
+                                                </div>
+
+                                                <div 
+                                                    className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
+                                                    onClick=${(e) => { e.stopPropagation(); onToggleAiBookmark(entry.id); }}
+                                                >
+                                                    <${Bookmark} size=${14} className=${entry.aiIsBookmarked ? 'fill-current' : ''} />
+                                                </div>
+                                                
+                                                <div 
+                                                    className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
+                                                    onClick=${(e) => { e.stopPropagation(); handleAiDeleteCheck(entry.id); }}
+                                                    title="Delete Reply"
+                                                >
+                                                    <${Trash2} size=${14} />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
