@@ -1,18 +1,71 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, MoreHorizontal, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2 } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal.js';
 import { ComposeBox } from './ComposeBox.js';
 import { Mood } from '../types.js';
+import { saveAISettings } from '../services/storage.js';
 
 const html = htm.bind(React.createElement);
 
-export const Profile = ({ userProfile, entries, setEntries }) => {
+export const Profile = ({ 
+    userProfile, 
+    entries, 
+    setEntries, 
+    onBackClick, 
+    onDrawerOpen, 
+    aiSettings,
+    onDelete,
+    onToggleLike,
+    onToggleBookmark
+}) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('posts'); // posts, replies, media, likes, ai_settings
+  
+  // AI Settings State
+  const [aiConfig, setAiConfig] = useState(aiSettings || { name: '', handle: '', persona: '', avatarUrl: '' });
+  const aiAvatarInputRef = useRef(null);
 
-  // Filter entries for this user (currently all entries are local user's)
-  const myEntries = entries;
+  useEffect(() => {
+    if (aiSettings) {
+        setAiConfig(aiSettings);
+    }
+  }, [aiSettings]);
+
+  // Filter entries
+  let displayedEntries = entries;
+  if (activeTab === 'likes') {
+      displayedEntries = entries.filter(e => e.isLiked);
+  }
+
+  const handleAiConfigChange = (e) => {
+    const { name, value } = e.target;
+    setAiConfig(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAiAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAiConfig(prev => ({ ...prev, avatarUrl: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const saveAiConfig = () => {
+    saveAISettings(aiConfig);
+    window.dispatchEvent(new Event('aiSettingsUpdated'));
+    alert('AI Settings Saved!');
+  };
+
+  const handleDeleteCheck = (id) => {
+    if (confirm('Are you sure you want to delete this post?')) {
+      onDelete(id);
+    }
+  };
 
   const MoodIcon = ({ mood }) => {
     switch(mood) {
@@ -25,20 +78,20 @@ export const Profile = ({ userProfile, entries, setEntries }) => {
  };
 
   return html`
-    <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px]">
-      <!-- Header with Back Button (Visual only since we use tab nav) -->
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-4 py-1 border-b border-gray-100 flex items-center gap-4 h-[53px]">
-        <div className="cursor-pointer hover:bg-gray-200 p-2 rounded-full transition-colors">
+    <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full">
+      <!-- Header with Back Button -->
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-1 border-b border-gray-100 flex items-center gap-4 h-[53px]">
+        <div onClick=${onBackClick} className="cursor-pointer hover:bg-gray-200 p-2 rounded-full transition-colors">
             <${ArrowLeft} size=${20} className="text-black" />
         </div>
         <div>
             <h2 className="text-xl font-bold text-black leading-5">${userProfile.name}</h2>
-            <!-- Count Removed -->
+            <p className="text-xs text-gray-500">${entries.length} posts</p>
         </div>
       </div>
 
       <!-- Hero / Banner -->
-      <div className="h-[200px] bg-gray-200 relative">
+      <div className="h-[150px] sm:h-[200px] bg-gray-200 relative">
          ${userProfile.headerUrl && html`
             <img src=${userProfile.headerUrl} alt="Header" className="w-full h-full object-cover" />
          `}
@@ -47,29 +100,29 @@ export const Profile = ({ userProfile, entries, setEntries }) => {
       <!-- Profile Info Section -->
       <div className="px-4 pb-4 relative">
         <div className="flex justify-between items-start">
-            <div className="-mt-[15%] w-[25%] min-w-[120px]">
+            <div className="-mt-[15%] w-[25%] min-w-[80px] max-w-[130px]">
                 <img 
                     src=${userProfile.avatarUrl} 
                     alt="Profile" 
-                    className="w-32 h-32 rounded-full border-4 border-white object-cover"
+                    className="w-full aspect-square rounded-full border-4 border-white object-cover"
                 />
             </div>
             <div className="mt-3">
                 <button 
                     onClick=${() => setIsEditModalOpen(true)}
-                    className="border border-gray-300 font-bold px-4 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-black"
+                    className="border border-gray-300 font-bold px-4 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-black text-sm sm:text-base"
                 >
-                    프로필 수정
+                    Edit profile
                 </button>
             </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-3">
             <h1 className="text-xl font-bold text-black">${userProfile.name}</h1>
-            <p className="text-gray-500">@${userProfile.handle.replace('@', '')}</p>
+            <p className="text-gray-500 text-sm">${userProfile.handle}</p>
         </div>
 
-        <div className="mt-4 text-black whitespace-pre-wrap">
+        <div className="mt-3 text-black whitespace-pre-wrap text-[15px]">
             ${userProfile.bio}
         </div>
 
@@ -82,65 +135,252 @@ export const Profile = ({ userProfile, entries, setEntries }) => {
             `}
             <div className="flex items-center gap-1">
                 <${Calendar} size=${16} />
-                <span>가입일: 2024년 3월</span>
+                <span>Joined March 2024</span>
             </div>
         </div>
 
         <div className="flex gap-4 mt-3 text-sm">
             <span className="text-black font-bold hover:underline cursor-pointer">
-                ${userProfile.following || 10} <span className="text-gray-500 font-normal">팔로잉</span>
+                ${userProfile.following || 10} <span className="text-gray-500 font-normal">Following</span>
             </span>
             <span className="text-black font-bold hover:underline cursor-pointer">
-                ${userProfile.followers || 42} <span className="text-gray-500 font-normal">팔로워</span>
+                ${userProfile.followers || 42} <span className="text-gray-500 font-normal">Followers</span>
             </span>
         </div>
       </div>
 
       <!-- Tabs -->
-      <div className="flex border-b border-gray-100 mt-2">
-         <div className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center font-bold text-black relative">
-            게시물
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>
+      <div className="flex border-b border-gray-100 mt-2 overflow-x-auto no-scrollbar">
+         <div onClick=${() => setActiveTab('posts')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap">
+            <span className=${activeTab === 'posts' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>Posts</span>
+            ${activeTab === 'posts' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
          </div>
-         <div className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center text-gray-500 font-medium">
-            답글
+         <div onClick=${() => setActiveTab('replies')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap">
+            <span className=${activeTab === 'replies' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>Replies</span>
+            ${activeTab === 'replies' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
          </div>
-         <div className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center text-gray-500 font-medium">
-            미디어
+         <div onClick=${() => setActiveTab('media')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap">
+            <span className=${activeTab === 'media' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>Media</span>
+             ${activeTab === 'media' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
          </div>
-         <div className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center text-gray-500 font-medium">
-            마음에 들어요
+         <div onClick=${() => setActiveTab('likes')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap flex justify-center items-center">
+             <${Heart} size=${20} className=${activeTab === 'likes' ? 'text-black fill-current' : 'text-gray-500'} />
+             ${activeTab === 'likes' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>`}
+         </div>
+         <div onClick=${() => setActiveTab('ai_settings')} className="flex-1 hover:bg-gray-100 transition-colors cursor-pointer p-4 text-center relative min-w-fit whitespace-nowrap">
+            <span className=${activeTab === 'ai_settings' ? 'font-bold text-black' : 'text-gray-500 font-medium'}>AI Settings</span>
+             ${activeTab === 'ai_settings' && html`<div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-1 bg-[#1d9bf0] rounded-full"></div>`}
          </div>
       </div>
 
-      <!-- Compose Box in Profile -->
-      <${ComposeBox} 
-        userProfile=${userProfile} 
-        onPostSuccess=${setEntries} 
-      />
+      <!-- Content Area -->
+      ${(activeTab === 'posts' || activeTab === 'likes') && html`
+        ${activeTab === 'posts' && html`
+            <${ComposeBox} 
+                userProfile=${userProfile} 
+                onPostSuccess=${setEntries}
+                onProfileClick=${onDrawerOpen} 
+            />
+        `}
+        <div>
+            ${displayedEntries.map((entry) => html`
+                <div key=${entry.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative">
+                    ${entry.aiResponse && html`
+                        <div className="absolute left-[34px] top-[50px] bottom-[20px] w-0.5 bg-gray-200 z-0"></div>
+                    `}
+                    <div className="flex gap-3 relative z-10">
+                        <img src=${userProfile.avatarUrl} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <span className="font-bold text-black truncate">${userProfile.name}</span>
+                                    <span className="text-gray-500 text-sm truncate">${userProfile.handle}</span>
+                                    <span className="text-gray-500 text-sm">·</span>
+                                    <span className="text-gray-500 text-sm whitespace-nowrap">${new Date(entry.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <div className="flex items-center">
+                                    <button 
+                                        onClick=${(e) => { e.stopPropagation(); handleDeleteCheck(entry.id); }}
+                                        className="text-gray-400 hover:text-red-500 opacity-0 hover:opacity-100 transition-opacity p-2"
+                                        title="Delete"
+                                    >
+                                        <${Trash2} size=${16} />
+                                    </button>
+                                </div>
+                            </div>
 
-      <!-- Profile Feed (Reusing simple list for now) -->
-      <div>
-        ${myEntries.map((entry) => html`
-            <div key=${entry.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                 <div className="flex gap-3">
-                    <img src=${userProfile.avatarUrl} className="w-10 h-10 rounded-full object-cover" />
-                    <div className="flex-1">
-                        <div className="flex items-center gap-1">
-                             <span className="font-bold text-black">${userProfile.name}</span>
-                             <span className="text-gray-500">@${userProfile.handle.replace('@', '')}</span>
-                             <span className="text-gray-500">·</span>
-                             <span className="text-gray-500 text-sm">${new Date(entry.createdAt).toLocaleDateString('ko-KR')}</span>
+                            <p className="text-black mt-1 whitespace-pre-wrap break-words text-[15px] sm:text-base">${entry.content}</p>
+                            
+                            ${entry.imageUrl && html`
+                                <div className="mt-3">
+                                    <img src=${entry.imageUrl} alt="Attached" className="rounded-2xl max-h-[300px] w-full object-cover border border-gray-100" />
+                                </div>
+                            `}
+
+                            <div className="mt-2 text-sm text-gray-500 flex gap-2">
+                                <span>Mood: <${MoodIcon} mood=${entry.mood} /></span>
+                            </div>
+
+                            <!-- Action Bar -->
+                            <div className="flex justify-between max-w-[425px] mt-3 text-gray-500">
+                                <div className="flex items-center gap-1 group/action cursor-pointer hover:text-[#1d9bf0]">
+                                    <div className="p-2 rounded-full group-hover/action:bg-blue-50 transition-colors">
+                                        <${MessageCircle} size=${18} />
+                                    </div>
+                                    <span className="text-xs">${entry.aiResponse ? 1 : 0}</span>
+                                </div>
+                                
+                                <div 
+                                    className=${`flex items-center gap-1 group/action cursor-pointer ${entry.isLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
+                                    onClick=${(e) => { e.stopPropagation(); onToggleLike(entry.id); }}
+                                >
+                                    <div className="p-2 rounded-full group-hover/action:bg-pink-50 transition-colors">
+                                        <${Heart} size=${18} className=${entry.isLiked ? 'fill-current' : ''} />
+                                    </div>
+                                    ${entry.isLiked && html`<span className="text-xs">1</span>`}
+                                </div>
+
+                                <div 
+                                    className=${`flex items-center gap-1 group/action cursor-pointer ${entry.isBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
+                                    onClick=${(e) => { e.stopPropagation(); onToggleBookmark(entry.id); }}
+                                >
+                                    <div className="p-2 rounded-full group-hover/action:bg-blue-50 transition-colors">
+                                        <${Bookmark} size=${18} className=${entry.isBookmarked ? 'fill-current' : ''} />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 group/action cursor-pointer hover:text-[#1d9bf0]">
+                                    <div className="p-2 rounded-full group-hover/action:bg-blue-50 transition-colors">
+                                        <${Share} size=${18} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- AI Reply -->
+                            ${entry.aiResponse && html`
+                                <div className="mt-3 pt-1">
+                                    <div className="flex gap-3">
+                                        <div className="w-8 h-8 flex-shrink-0">
+                                            ${aiSettings?.avatarUrl 
+                                              ? html`<img src=${aiSettings.avatarUrl} className="w-8 h-8 rounded-full object-cover border border-gray-200" />`
+                                              : html`
+                                                  <div className="w-full h-full bg-[#1d9bf0] p-1.5 rounded-full text-white flex items-center justify-center">
+                                                      <${Bot} size=${16} />
+                                                  </div>
+                                              `
+                                            }
+                                        </div>
+                                        <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-black text-sm">${aiSettings?.name || 'Gemini AI'}</span>
+                                            </div>
+                                            <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `}
                         </div>
-                        <p className="text-black mt-1 whitespace-pre-wrap">${entry.content}</p>
-                        <div className="mt-2 text-sm text-gray-500 flex gap-2">
-                             <span>기분: <${MoodIcon} mood=${entry.mood} /></span>
+                    </div>
+                </div>
+            `)}
+             <div className="h-40 text-center text-gray-500 py-10">
+                ${displayedEntries.length === 0 ? 'Nothing here.' : 'No more posts.'}
+            </div>
+        </div>
+      `}
+
+      ${activeTab === 'ai_settings' && html`
+        <div className="p-6">
+            <h3 className="text-xl font-bold mb-4">Configure AI Companion</h3>
+            <div className="flex flex-col gap-6">
+                 
+                 <!-- AI Avatar Upload -->
+                 <div className="flex flex-col gap-2">
+                    <label className="text-xs text-gray-500 block">AI Avatar</label>
+                    <div className="flex items-center gap-4">
+                        <div className="relative group w-20 h-20">
+                            ${aiConfig.avatarUrl 
+                                ? html`<img src=${aiConfig.avatarUrl} className="w-full h-full rounded-full object-cover border border-gray-200" />`
+                                : html`<div className="w-full h-full rounded-full bg-gray-200 flex items-center justify-center text-gray-500"><${Bot} size=${32} /></div>`
+                            }
+                            <button 
+                                onClick=${() => aiAvatarInputRef.current.click()}
+                                className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                            >
+                                <${Camera} size=${24} />
+                            </button>
+                        </div>
+                        <div className="flex-1">
+                            <button 
+                                onClick=${() => aiAvatarInputRef.current.click()}
+                                className="text-[#1d9bf0] font-bold text-sm hover:underline"
+                            >
+                                Upload Image
+                            </button>
+                            <input 
+                                type="file" 
+                                ref=${aiAvatarInputRef} 
+                                onChange=${handleAiAvatarUpload} 
+                                accept="image/*" 
+                                className="hidden" 
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Recommended: Square image</p>
                         </div>
                     </div>
                  </div>
+
+                 <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative group">
+                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">AI Name</label>
+                    <input 
+                        type="text"
+                        name="name"
+                        value=${aiConfig.name}
+                        onChange=${handleAiConfigChange}
+                        className="w-full bg-transparent text-black outline-none py-1"
+                        placeholder="e.g. Jarvis, Bestie"
+                    />
+                </div>
+                
+                 <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative group">
+                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">AI Twitter Handle</label>
+                    <input 
+                        type="text"
+                        name="handle"
+                        value=${aiConfig.handle}
+                        onChange=${handleAiConfigChange}
+                        className="w-full bg-transparent text-black outline-none py-1"
+                        placeholder="e.g. @ai_friend"
+                    />
+                </div>
+
+                <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] p-2 relative group">
+                    <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">AI Persona / System Prompt</label>
+                    <textarea 
+                        name="persona"
+                        value=${aiConfig.persona}
+                        onChange=${handleAiConfigChange}
+                        className="w-full bg-transparent text-black outline-none mt-1 resize-none h-[150px]"
+                        placeholder="Describe how the AI should behave..."
+                    ></textarea>
+                </div>
+
+                <button 
+                    onClick=${saveAiConfig}
+                    className="bg-[#1d9bf0] text-white font-bold py-3 rounded-full hover:bg-[#1a8cd8] transition-colors flex items-center justify-center gap-2"
+                >
+                    <${Save} size=${20} />
+                    Save Configuration
+                </button>
             </div>
-        `)}
-      </div>
+        </div>
+      `}
+      
+      ${(activeTab !== 'posts' && activeTab !== 'likes' && activeTab !== 'ai_settings') && html`
+          <div className="p-10 text-center text-gray-500">
+              <p className="text-xl font-bold text-black mb-2">Nothing to see here yet</p>
+              <p>When you post media or like tweets, they will show up here.</p>
+          </div>
+      `}
 
       <!-- Edit Modal -->
       ${isEditModalOpen && html`

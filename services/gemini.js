@@ -1,4 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
+import { getAISettings } from "./storage.js";
 
 const getClient = () => {
   const apiKey = process.env.API_KEY;
@@ -11,15 +13,22 @@ const getClient = () => {
 
 export const analyzeDiaryEntry = async (text, mood) => {
   const client = getClient();
-  if (!client) return { reply: "API Key가 설정되지 않았습니다.", tags: [] };
+  if (!client) return { reply: "API Key is missing.", tags: [] };
+
+  const aiConfig = getAISettings();
 
   try {
     const prompt = `
-      사용자가 다음 기분으로 일기를 작성했습니다: "${mood}".
-      일기 내용: "${text}"
+      ${aiConfig.persona}
       
-      이 일기에 대해 공감하는 짧은 댓글(트위터 답글 스타일)과 내용을 요약하는 해시태그 3개를 JSON으로 생성해주세요.
-      댓글은 따뜻하고 격려하는 어조 혹은 상황에 맞는 위로/축하를 담아야 합니다. 반말(~했구나, ~야)을 사용해 친근하게 해주세요.
+      User's Diary Entry (Mood: ${mood}):
+      "${text}"
+      
+      Task:
+      1. Write a reply (mention) to this entry based on your persona.
+      2. Generate 3 relevant hashtags.
+
+      Response Format: JSON
     `;
 
     const response = await client.models.generateContent({
@@ -48,8 +57,8 @@ export const analyzeDiaryEntry = async (text, mood) => {
   } catch (error) {
     console.error("Gemini analysis failed:", error);
     return {
-      reply: "AI 분석을 불러올 수 없었어요. 하지만 당신의 하루는 소중해요!",
-      tags: ["#기록", "#하루", "#오류"]
+      reply: "The AI companion is currently unavailable. Your day matters!",
+      tags: ["#diary", "#life", "#error"]
     };
   }
 };

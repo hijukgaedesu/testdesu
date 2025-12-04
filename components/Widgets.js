@@ -1,3 +1,4 @@
+
 import React from 'react';
 import htm from 'htm';
 import { Search } from 'lucide-react';
@@ -20,7 +21,7 @@ const moodToScore = (mood) => {
 export const Widgets = ({ entries }) => {
   // Prepare data for the chart
   const data = entries.slice(0, 10).reverse().map(e => ({
-    date: new Date(e.createdAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }),
+    date: new Date(e.createdAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
     score: moodToScore(e.mood),
     mood: e.mood
   }));
@@ -35,7 +36,7 @@ export const Widgets = ({ entries }) => {
           </div>
           <input
             type="text"
-            placeholder="일기 검색"
+            placeholder="Search"
             className="w-full bg-[#eff3f4] text-black rounded-full py-3 pl-12 pr-4 outline-none focus:bg-white focus:ring-1 focus:ring-[#1d9bf0] border border-transparent focus:border-[#1d9bf0] transition-all placeholder-gray-500"
           />
         </div>
@@ -43,7 +44,7 @@ export const Widgets = ({ entries }) => {
 
       <!-- Mood Trend Chart -->
       <div className="bg-[#f7f9f9] rounded-2xl mt-4 p-4">
-        <h2 className="text-xl font-bold mb-4 px-2 text-black">기분 흐름</h2>
+        <h2 className="text-xl font-bold mb-4 px-2 text-black">Mood Trend</h2>
         ${data.length > 1 ? html`
           <div className="h-[200px] w-full">
             <${ResponsiveContainer} width="100%" height="100%">
@@ -73,24 +74,24 @@ export const Widgets = ({ entries }) => {
             </${ResponsiveContainer}>
           </div>
         ` : html`
-          <p className="text-gray-500 p-4 text-center">데이터가 충분하지 않습니다.</p>
+          <p className="text-gray-500 p-4 text-center">Not enough data.</p>
         `}
       </div>
 
       <!-- Recent Tags -->
       <div className="bg-[#f7f9f9] rounded-2xl mt-4 py-3">
-        <h2 className="text-xl font-bold mb-3 px-4 text-black">자주 쓴 태그</h2>
+        <h2 className="text-xl font-bold mb-3 px-4 text-black">Trends for you</h2>
         <div className="flex flex-col">
-          ${['#오늘의기록', '#Gemini', '#일상', '#개발', '#행복'].map((tag, idx) => html`
+          ${['#DailyLog', '#Gemini', '#Life', '#Dev', '#Happy'].map((tag, idx) => html`
             <div key=${idx} className="px-4 py-3 hover:bg-gray-100 cursor-pointer transition-colors">
-              <p className="text-gray-500 text-xs text-right mb-1">대한민국 트렌드</p>
+              <p className="text-gray-500 text-xs text-right mb-1">Trending in US</p>
               <p className="font-bold text-black">${tag}</p>
               <p className="text-gray-500 text-xs mt-1">1,234 posts</p>
             </div>
           `)}
         </div>
         <div className="p-4 text-[#1d9bf0] text-sm cursor-pointer hover:underline">
-          더 보기
+          Show more
         </div>
       </div>
     </div>

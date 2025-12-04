@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import htm from 'htm';
 import { X, Camera } from 'lucide-react';
@@ -43,13 +44,13 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
                 <button onClick=${onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-black">
                     <${X} size=${20} />
                 </button>
-                <h2 className="text-xl font-bold text-black">프로필 수정</h2>
+                <h2 className="text-xl font-bold text-black">Edit Profile</h2>
             </div>
             <button 
                 onClick=${handleSave}
                 className="bg-black text-white font-bold px-4 py-1.5 rounded-full hover:bg-gray-800 transition-colors"
             >
-                저장
+                Save
             </button>
         </div>
 
@@ -103,21 +104,24 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
         <!-- Form Fields -->
         <div className="px-4 pb-10 flex flex-col gap-6">
             <${FloatingInput} 
-                label="이름" 
+                label="Name" 
                 name="name" 
                 value=${formData.name} 
                 onChange=${handleChange} 
                 maxLength=${50}
             />
              <${FloatingInput} 
-                label="사용자 아이디 (@제외)" 
+                label="Handle (without @)" 
                 name="handle" 
-                value=${formData.handle} 
-                onChange=${handleChange} 
+                value=${formData.handle.replace('@', '')} 
+                onChange=${(e) => {
+                    const val = e.target.value.startsWith('@') ? e.target.value : '@' + e.target.value;
+                    handleChange({ target: { name: 'handle', value: val }});
+                }} 
                 prefix="@"
             />
             <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] p-2 relative group">
-                <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">자기소개</label>
+                <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0] block">Bio</label>
                 <textarea 
                     name="bio"
                     value=${formData.bio}
@@ -127,7 +131,7 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
                 ></textarea>
             </div>
              <${FloatingInput} 
-                label="위치" 
+                label="Location" 
                 name="location" 
                 value=${formData.location || ''} 
                 onChange=${handleChange} 
@@ -135,14 +139,14 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
             
             <div className="flex gap-4">
                  <${FloatingInput} 
-                    label="팔로잉 수 (수동)" 
+                    label="Following (Manual)" 
                     name="following" 
                     type="number"
                     value=${formData.following || 0} 
                     onChange=${handleChange} 
                 />
                  <${FloatingInput} 
-                    label="팔로워 수 (수동)" 
+                    label="Followers (Manual)" 
                     name="followers" 
                     type="number"
                     value=${formData.followers || 0} 
