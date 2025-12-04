@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Haru Tweet (하루 트윗) 11",
+  "description": "트위터 스타일의 UI를 가진 AI 기반 일기장입니다. Gemini API를 활용하여 작성된 일기에 대한 공감과 분석을 제공하며, 기분 흐름을 시각화합니다.",
+  "requestFramePermissions": []
+}
