@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
-import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle, Key } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal.js';
 import { ComposeBox } from './ComposeBox.js';
 import { saveAISettings } from '../services/storage.js';
@@ -29,6 +29,7 @@ export const Profile = ({
   // AI Settings State
   const [localAiSettings, setLocalAiSettings] = useState(aiSettings);
   const [editingAiId, setEditingAiId] = useState(1);
+  const [apiKey, setApiKey] = useState('');
 
   const aiAvatarInputRef = useRef(null);
 
@@ -40,6 +41,12 @@ export const Profile = ({
         }
     }
   }, [aiSettings]);
+
+  // Load API Key
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) setApiKey(storedKey);
+  }, []);
 
   // Update active tab when defaultTab changes (e.g. navigating from Sidebar)
   useEffect(() => {
@@ -92,6 +99,11 @@ export const Profile = ({
     saveAISettings(localAiSettings);
     window.dispatchEvent(new Event('aiSettingsUpdated'));
     alert('AI Settings Saved!');
+  };
+
+  const handleSaveApiKey = () => {
+      localStorage.setItem('gemini_api_key', apiKey);
+      alert('API Key Saved! You can now use AI features.');
   };
 
   const handleDeleteCheck = (id) => {
@@ -349,6 +361,36 @@ export const Profile = ({
         <div className="p-6">
             <h3 className="text-xl font-bold mb-4">AI Configuration</h3>
             
+            <!-- API Key Setup (New) -->
+            <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                    <${Key} size=${18} className="text-[#1d9bf0]" />
+                    <h4 className="font-bold text-black">API Key Setup</h4>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                    To use AI features on this demo site, please enter your Gemini API Key. 
+                    It will be stored locally in your browser.
+                </p>
+                <div className="flex gap-2">
+                    <div className="flex-1 border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative bg-white">
+                        <label className="text-xs text-gray-500 block">Gemini API Key</label>
+                        <input 
+                            type="password" 
+                            value=${apiKey}
+                            onChange=${(e) => setApiKey(e.target.value)}
+                            className="w-full bg-transparent text-black outline-none py-1"
+                            placeholder="AIza..."
+                        />
+                    </div>
+                    <button 
+                        onClick=${handleSaveApiKey}
+                        className="bg-black text-white font-bold px-4 rounded-md hover:bg-gray-800 transition-colors whitespace-nowrap h-auto"
+                    >
+                        Save Key
+                    </button>
+                </div>
+            </div>
+
             <!-- AI Selector Tabs -->
             <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-lg">
                 ${localAiSettings.ais.map(ai => html`

@@ -3,7 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { getAISettings } from "./storage.js";
 
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Check process.env first, then localStorage for static site support
+  const apiKey = process.env.API_KEY || localStorage.getItem('gemini_api_key');
   if (!apiKey) {
     console.warn("API Key not found");
     return null;
@@ -13,7 +14,7 @@ const getClient = () => {
 
 export const analyzeDiaryEntry = async (text, aiConfig) => {
   const ai = getClient();
-  if (!ai) return { reply: "API Key가 설정되지 않았습니다." };
+  if (!ai) return { reply: "API Key가 설정되지 않았습니다. 설정 탭에서 키를 입력해주세요." };
 
   const persona = aiConfig?.persona || "You are a helpful AI.";
   
@@ -53,14 +54,14 @@ export const analyzeDiaryEntry = async (text, aiConfig) => {
   } catch (error) {
     console.error("Gemini analysis failed:", error);
     return {
-      reply: "AI 분석을 불러올 수 없었어요. 잠시 후 다시 시도해주세요."
+      reply: "AI 분석을 불러올 수 없었어요. API Key를 확인하거나 잠시 후 다시 시도해주세요."
     };
   }
 };
 
 export const getChatResponse = async (history, aiConfig) => {
   const ai = getClient();
-  if (!ai) return "API Key가 설정되지 않았습니다.";
+  if (!ai) return "API Key가 설정되지 않았습니다. 설정 탭에서 키를 입력해주세요.";
 
   const persona = aiConfig?.persona || "You are a helpful AI.";
   
@@ -80,6 +81,6 @@ export const getChatResponse = async (history, aiConfig) => {
     return response.text;
   } catch (error) {
     console.error("Gemini chat failed:", error);
-    return "죄송합니다. 지금은 대답하기 어렵네요. 잠시 후 다시 말을 걸어주세요!";
+    return "죄송합니다. 지금은 대답하기 어렵네요. API Key를 확인해주세요!";
   }
 };
