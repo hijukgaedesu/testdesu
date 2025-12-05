@@ -33,7 +33,7 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
       <div className=${overlayClass} onClick=${onCloseMobile}></div>
 
       <!-- Sidebar Container (Mobile + Desktop) -->
-      <div className=${`flex flex-col border-r border-gray-100 h-screen bg-white text-black sm:sticky sm:top-0 sm:min-w-[68px] xl:min-w-[275px] sm:pr-2 xl:pr-6 sm:translate-x-0 ${mobileContainerClass}`}>
+      <div className=${`flex flex-col border-r border-gray-100 h-screen bg-white text-black sm:sticky sm:top-0 sm:min-w-[68px] xl:min-w-[275px] sm:pr-0 xl:pr-6 sm:translate-x-0 ${mobileContainerClass}`}>
         
         <!-- Mobile Header (Profile Info) -->
         <div className="sm:hidden p-4 border-b border-gray-100 flex flex-col gap-3">
@@ -57,18 +57,18 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
             </div>
         </div>
 
-        <div className="py-1 flex-1 flex flex-col xl:w-full items-end xl:items-start">
+        <div className="py-1 flex-1 flex flex-col xl:w-full items-start sm:items-center xl:items-start">
           <!-- Logo Area -->
           <div 
             onClick=${() => { onChangeView('home'); onCloseMobile(); }}
-            className="hidden sm:block p-3 mb-2 rounded-full hover:bg-gray-200 w-fit cursor-pointer transition-colors"
+            className="hidden sm:flex p-3 mb-2 rounded-full hover:bg-gray-200 w-fit cursor-pointer transition-colors justify-center items-center"
           >
             <!-- Star Emoji -->
             <div className="w-8 h-8 flex items-center justify-center text-2xl">⭐</div>
           </div>
 
           <!-- Navigation Items -->
-          <nav className="flex flex-col gap-1 w-full px-2 sm:px-0">
+          <nav className="flex flex-col gap-1 w-full px-2 sm:px-0 items-start sm:items-center xl:items-start">
             ${navItems.map(item => html`
               <${SidebarItem} 
                 key=${item.id}
@@ -83,7 +83,7 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
           <!-- Tweet Button -->
           <button 
             onClick=${() => { onComposeClick(); onCloseMobile(); }}
-            className="mt-6 sm:mr-0 mr-4 ml-4 sm:ml-0 bg-[#1d9bf0] text-white font-bold rounded-full w-[50px] h-[50px] xl:w-[90%] xl:h-[52px] flex items-center justify-center hover:bg-[#1a8cd8] transition-colors shadow-lg self-end sm:self-auto xl:self-start"
+            className="mt-auto mb-4 mx-auto bg-[#1d9bf0] text-white font-bold rounded-full w-[50px] h-[50px] xl:w-[90%] xl:h-[52px] flex items-center justify-center hover:bg-[#1a8cd8] transition-colors shadow-lg"
           >
             <span className="hidden xl:inline text-lg">Post</span>
             <span className="xl:hidden sm:block hidden"><${PenTool} size=${24} /></span>
@@ -92,7 +92,10 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
         </div>
 
         <!-- Desktop Bottom Profile -->
-        <div className="hidden sm:flex mb-4 items-center gap-3 p-3 rounded-full hover:bg-gray-200 cursor-pointer w-fit xl:w-full transition-colors mt-auto">
+        <div 
+            onClick=${() => onChangeView('profile')}
+            className="hidden sm:flex mb-4 items-center gap-3 p-3 rounded-full hover:bg-gray-200 cursor-pointer w-fit xl:w-full transition-colors mt-auto"
+        >
           <img src=${userProfile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
           <div className="hidden xl:block">
             <p className="font-bold text-sm text-black">${userProfile.name}</p>
