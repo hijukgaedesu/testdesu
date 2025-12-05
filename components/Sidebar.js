@@ -1,23 +1,21 @@
 
 import React from 'react';
 import htm from 'htm';
-import { Home, Bell, Mail, Bookmark, User, MoreHorizontal, PenTool, X as XIcon, Settings } from 'lucide-react';
+import { Home, Bell, Mail, Bookmark, User, MoreHorizontal, X as XIcon, Settings } from 'lucide-react';
 
 const html = htm.bind(React.createElement);
 
 export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile, isMobileOpen, onCloseMobile }) => {
   // Mobile Drawer Classes
   const mobileContainerClass = isMobileOpen 
-    ? "fixed inset-y-0 left-0 z-50 w-[280px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0" 
-    : "fixed inset-y-0 left-0 z-50 w-[280px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out -translate-x-full";
+    ? "fixed inset-y-0 left-0 z-50 w-[280px] bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out translate-x-0" 
+    : "fixed inset-y-0 left-0 z-50 w-[280px] bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out -translate-x-full";
 
   const overlayClass = isMobileOpen
-    ? "fixed inset-0 bg-black/40 z-40 sm:hidden block"
+    ? "fixed inset-0 z-40 sm:hidden block"
     : "hidden";
 
   // Navigation Items Configuration
-  // Removed: Explore(Search), Grok, Lists, Communities, Premium
-  // Changed: More -> Settings (icon changed, label changed)
   const navItems = [
     { id: 'home', icon: Home, label: 'Home' },
     { id: 'notifications', icon: Bell, label: 'Notifications' },
@@ -32,8 +30,9 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
       <!-- Mobile Overlay -->
       <div className=${overlayClass} onClick=${onCloseMobile}></div>
 
-      <!-- Sidebar Container (Mobile + Desktop) -->
-      <div className=${`flex flex-col border-r border-gray-100 h-screen bg-white text-black sm:sticky sm:top-0 sm:min-w-[68px] xl:min-w-[275px] sm:pr-0 xl:pr-6 sm:translate-x-0 ${mobileContainerClass}`}>
+      <!-- Sidebar Container (Mobile + Tablet + Desktop) -->
+      <!-- Adjusted sm:min-w to 250px to fit text on tablet screens -->
+      <div className=${`flex flex-col border-r border-gray-100 h-screen bg-white text-black sm:sticky sm:top-0 sm:min-w-[250px] lg:min-w-[275px] sm:pr-0 lg:pr-6 sm:translate-x-0 ${mobileContainerClass}`}>
         
         <!-- Mobile Header (Profile Info) -->
         <div className="sm:hidden p-4 border-b border-gray-100 flex flex-col gap-3">
@@ -57,7 +56,7 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
             </div>
         </div>
 
-        <div className="py-1 flex-1 flex flex-col xl:w-full items-start sm:items-center xl:items-start">
+        <div className="py-1 flex-1 flex flex-col lg:w-full items-start">
           <!-- Logo Area -->
           <div 
             onClick=${() => { onChangeView('home'); onCloseMobile(); }}
@@ -68,7 +67,7 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
           </div>
 
           <!-- Navigation Items -->
-          <nav className="flex flex-col gap-1 w-full px-2 sm:px-0 items-start sm:items-center xl:items-start">
+          <nav className="flex flex-col gap-1 w-full px-2 sm:px-0 items-start">
             ${navItems.map(item => html`
               <${SidebarItem} 
                 key=${item.id}
@@ -79,29 +78,22 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
               />
             `)}
           </nav>
+          
+          <!-- Tweet/Post Button Removed as requested -->
 
-          <!-- Tweet Button -->
-          <button 
-            onClick=${() => { onComposeClick(); onCloseMobile(); }}
-            className="mt-auto mb-4 mx-auto bg-[#1d9bf0] text-white font-bold rounded-full w-[50px] h-[50px] xl:w-[90%] xl:h-[52px] flex items-center justify-center hover:bg-[#1a8cd8] transition-colors shadow-lg"
-          >
-            <span className="hidden xl:inline text-lg">Post</span>
-            <span className="xl:hidden sm:block hidden"><${PenTool} size=${24} /></span>
-            <span className="sm:hidden block text-md px-4">Post</span>
-          </button>
         </div>
 
-        <!-- Desktop Bottom Profile -->
+        <!-- Desktop/Tablet Bottom Profile -->
         <div 
             onClick=${() => onChangeView('profile')}
-            className="hidden sm:flex mb-4 items-center gap-3 p-3 rounded-full hover:bg-gray-200 cursor-pointer w-fit xl:w-full transition-colors mt-auto"
+            className="hidden sm:flex mb-4 items-center gap-3 p-3 rounded-full hover:bg-gray-200 cursor-pointer w-full transition-colors mt-auto"
         >
           <img src=${userProfile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
-          <div className="hidden xl:block">
+          <div className="block">
             <p className="font-bold text-sm text-black">${userProfile.name}</p>
             <p className="text-gray-500 text-sm">${userProfile.handle}</p>
           </div>
-          <${MoreHorizontal} className="hidden xl:block ml-auto text-black" size=${18} />
+          <${MoreHorizontal} className="block ml-auto text-black" size=${18} />
         </div>
       </div>
     </${React.Fragment}>
@@ -109,10 +101,11 @@ export const Sidebar = ({ onComposeClick, currentView, onChangeView, userProfile
 };
 
 const SidebarItem = ({ icon, text, active, onClick }) => html`
-  <div onClick=${onClick} className="flex items-center group cursor-pointer w-full sm:w-fit xl:w-full">
-    <div className=${`flex items-center gap-5 p-3 rounded-full transition-colors ${active ? 'font-bold' : 'font-normal'} group-hover:bg-gray-200 w-auto`}>
+  <div onClick=${onClick} className="flex items-center group cursor-pointer w-full">
+    <div className=${`flex items-center gap-5 p-3 rounded-full transition-colors ${active ? 'font-bold' : 'font-normal'} group-hover:bg-gray-200 w-auto pr-6`}>
       ${icon}
-      <span className="hidden xl:block text-xl mr-4">${text}</span>
+      <!-- Text is now always visible (block) -->
+      <span className="block text-xl mr-4">${text}</span>
     </div>
   </div>
 `;

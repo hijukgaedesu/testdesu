@@ -39,7 +39,7 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
       <div className="bg-white w-full max-w-[600px] rounded-2xl h-[90vh] sm:h-[650px] overflow-y-auto relative flex flex-col">
         
         <!-- Header -->
-        <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white/80 backdrop-blur-md z-10">
+        <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white z-10">
             <div className="flex items-center gap-4">
                 <button onClick=${onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-black">
                     <${X} size=${20} />

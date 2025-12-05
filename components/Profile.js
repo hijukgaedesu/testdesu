@@ -127,7 +127,7 @@ export const Profile = ({
   return html`
     <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full">
       <!-- Header with Back Button -->
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-1 border-b border-gray-100 flex items-center gap-4 h-[53px]">
+      <div className="sticky top-0 z-20 bg-white px-4 py-1 border-b border-gray-100 flex items-center gap-4 h-[53px]">
         <div onClick=${onBackClick} className="cursor-pointer hover:bg-gray-200 p-2 rounded-full transition-colors">
             <${ArrowLeft} size=${20} className="text-black" />
         </div>

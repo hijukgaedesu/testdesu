@@ -45,7 +45,7 @@ export const Feed = ({
   return html`
     <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full">
       <!-- Header -->
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-3 border-b border-gray-100 flex items-center gap-4 sm:block">
+      <div className="sticky top-0 z-20 bg-white px-4 py-3 border-b border-gray-100 flex items-center gap-4 sm:block">
         <div className="sm:hidden cursor-pointer" onClick=${onProfileClick}>
            <img src=${userProfile?.avatarUrl || "https://picsum.photos/200"} className="w-8 h-8 rounded-full object-cover" />
         </div>

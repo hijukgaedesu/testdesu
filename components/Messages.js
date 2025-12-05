@@ -11,7 +11,7 @@ const html = htm.bind(React.createElement);
 const ConversationList = ({ aiSettings, messages, activeId, onSelect, onBackClick }) => {
   return html`
     <div className="flex-col h-full overflow-y-auto w-full md:w-[380px] md:border-r border-gray-100 ${activeId ? 'hidden md:flex' : 'flex'}">
-       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-3 border-b border-gray-100 flex items-center justify-between h-[53px]">
+       <div className="sticky top-0 z-20 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between h-[53px]">
           <div className="flex items-center gap-4">
               <div onClick=${onBackClick} className="cursor-pointer hover:bg-gray-200 p-2 rounded-full transition-colors md:hidden">
                   <${ArrowLeft} size=${20} className="text-black" />
@@ -92,7 +92,7 @@ const ChatWindow = ({ aiId, aiSettings, messages, inputText, setInputText, onSen
     return html`
       <div className="flex-1 flex flex-col h-full min-w-0 border-r border-gray-100 max-w-[600px]">
         <!-- Header -->
-        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-2 border-b border-gray-100 flex items-center justify-between h-[53px]">
+        <div className="sticky top-0 z-20 bg-white px-4 py-2 border-b border-gray-100 flex items-center justify-between h-[53px]">
             <div className="flex items-center gap-2">
                 <div onClick=${onBackClick} className="cursor-pointer hover:bg-gray-200 p-2 rounded-full transition-colors md:hidden">
                     <${ArrowLeft} size=${20} className="text-black" />
@@ -116,7 +116,6 @@ const ChatWindow = ({ aiId, aiSettings, messages, inputText, setInputText, onSen
                 </div>
                 <h2 className="font-bold text-lg text-black">${currentAi.name}</h2>
                 <p className="text-gray-500 text-sm">${currentAi.handle}</p>
-                <p className="text-gray-500 text-sm mt-2 max-w-[80%] text-center">${currentAi.persona.slice(0, 80)}...</p>
             </div>
 
             ${currentConversation.map((msg) => html`

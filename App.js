@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import htm from 'htm';
 import { Sidebar } from './components/Sidebar.js';
 import { Feed } from './components/Feed.js';
@@ -12,7 +12,7 @@ const html = htm.bind(React.createElement);
 
 const PlaceholderView = ({ title }) => html`
   <div className="flex-1 min-w-0 border-r border-gray-100 max-w-[600px] w-full flex flex-col h-screen">
-    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 py-3 border-b border-gray-100">
+    <div className="sticky top-0 z-20 bg-white px-4 py-3 border-b border-gray-100">
       <h1 className="text-xl font-bold text-black">${title}</h1>
     </div>
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -32,10 +32,6 @@ const App = () => {
   // State for filtering by tag
   const [currentTag, setCurrentTag] = useState(null);
   
-  // Swipe detection
-  const touchStartRef = useRef(null);
-  const touchEndRef = useRef(null);
-
   useEffect(() => {
     // Load initial data
     const loadedEntries = getStoredEntries();
@@ -57,30 +53,6 @@ const App = () => {
         window.removeEventListener('aiSettingsUpdated', handleStorageChange);
     };
   }, []);
-
-  // Swipe Handlers
-  const onTouchStart = (e) => {
-      touchEndRef.current = null;
-      touchStartRef.current = e.targetTouches[0].clientX;
-  };
-
-  const onTouchMove = (e) => {
-      touchEndRef.current = e.targetTouches[0].clientX;
-  };
-
-  const onTouchEnd = () => {
-      if (!touchStartRef.current || !touchEndRef.current) return;
-      const distance = touchStartRef.current - touchEndRef.current;
-      const isLeftSwipe = distance > 50;
-      const isRightSwipe = distance < -50;
-
-      if (isRightSwipe) {
-          setIsMobileOpen(true);
-      }
-      if (isLeftSwipe) {
-          setIsMobileOpen(false);
-      }
-  };
 
   const handleComposeClick = () => {
     if (view !== 'home') setView('home');
@@ -212,12 +184,7 @@ const App = () => {
   }
 
   return html`
-    <div 
-        className="bg-white min-h-screen text-black"
-        onTouchStart=${onTouchStart}
-        onTouchMove=${onTouchMove}
-        onTouchEnd=${onTouchEnd}
-    >
+    <div className="bg-white min-h-screen text-black">
       <div className="max-w-[1265px] mx-auto flex">
         <!-- Left Sidebar -->
         <${Sidebar} 
@@ -235,6 +202,15 @@ const App = () => {
         <!-- Right Widgets -->
         ${view !== 'messages' && html`<${Widgets} entries=${entries} onTagClick=${handleTagClick} />`}
       </div>
+
+      <!-- Mobile Menu Button (Star) -->
+      <button 
+        onClick=${() => setIsMobileOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-white rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-gray-100 flex items-center justify-center text-2xl z-30 sm:hidden active:scale-95 transition-transform"
+        aria-label="Open Menu"
+      >
+        ⭐
+      </button>
     </div>
   `;
 };
