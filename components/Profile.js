@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
 import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle } from 'lucide-react';
@@ -14,12 +15,12 @@ export const Profile = ({
     onBackClick, 
     onDrawerOpen, 
     aiSettings, 
-    onDelete,
-    onToggleLike,
-    onToggleBookmark,
-    onToggleAiLike,
-    onToggleAiBookmark,
-    onDeleteAiReply,
+    onDelete, 
+    onToggleLike, 
+    onToggleBookmark, 
+    onToggleAiLike, 
+    onToggleAiBookmark, 
+    onDeleteAiReply, 
     defaultTab 
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -94,15 +95,13 @@ export const Profile = ({
   };
 
   const handleDeleteCheck = (id) => {
-    if (confirm('Are you sure you want to delete this post?')) {
-      onDelete(id);
-    }
+    // Immediate deletion
+    onDelete(id);
   };
 
   const handleAiDeleteCheck = (id) => {
-    if (confirm('Are you sure you want to delete this AI reply?')) {
-      onDeleteAiReply(id);
-    }
+    // Immediate deletion
+    onDeleteAiReply(id);
   };
 
   // Helper to find AI info for display in feed

@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import htm from 'htm';
 import { MessageCircle, Heart, Share, Trash2, Bot, Bookmark } from 'lucide-react';
@@ -16,24 +15,22 @@ export const Feed = ({
     viewTitle = 'Home', 
     onDelete, 
     onToggleLike, 
-    onToggleBookmark,
-    onToggleAiLike,
-    onToggleAiBookmark,
-    onDeleteAiReply,
-    onTagClick,
-    isBookmarkView = false
+    onToggleBookmark, 
+    onToggleAiLike, 
+    onToggleAiBookmark, 
+    onDeleteAiReply, 
+    onTagClick, 
+    isBookmarkView = false 
 }) => {
   
   const handleDeleteCheck = (id) => {
-    if (confirm('Are you sure you want to delete this post?')) {
-      onDelete(id);
-    }
+    // Immediate deletion as requested
+    onDelete(id);
   };
 
   const handleAiDeleteCheck = (id) => {
-    if (confirm('Are you sure you want to delete this AI reply?')) {
-      onDeleteAiReply(id);
-    }
+    // Immediate deletion as requested
+    onDeleteAiReply(id);
   };
 
   // Helper to find the AI config for a specific entry

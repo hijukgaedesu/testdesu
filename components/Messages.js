@@ -220,10 +220,9 @@ export const Messages = ({ aiSettings, onBackClick, userProfile }) => {
   }, []);
 
   const handleDeleteMessage = (id) => {
-      if(confirm('정말로 이 메시지를 삭제하시겠습니까?')) {
-          const updated = deleteMessage(id);
-          setMessages(updated);
-      }
+      // Immediate deletion as requested
+      const updated = deleteMessage(id);
+      setMessages(updated);
   };
 
   const handleSend = async () => {
