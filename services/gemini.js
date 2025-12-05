@@ -1,17 +1,24 @@
 
 import { getAISettings } from "./storage.js";
 
-const API_ENDPOINT = 'https://testdesu-beryl.vercel.app/api/generate';
+const VERCEL_ENDPOINT = 'https://testdesu-beryl.vercel.app/api/generate';
 
-// Helper function to extract text from various response formats
-const extractTextFromResponse = (data) => {
-  if (typeof data === 'string') return data;
-  if (data.text) return data.text;
-  if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-    return data.candidates[0].content.parts[0].text;
+async function callAI(promptText) {
+  const response = await fetch(VERCEL_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ prompt: promptText })
+  });
+
+  if (!response.ok) {
+    throw new Error('AI 서버리스 함수 호출 실패');
   }
-  return JSON.stringify(data);
-};
+
+  const data = await response.json();
+  return data.aiResponse; 
+}
 
 export const analyzeDiaryEntry = async (text, aiConfig) => {
   // 1. Prepare Persona
@@ -37,26 +44,15 @@ export const analyzeDiaryEntry = async (text, aiConfig) => {
 
   // 3. Call Backend
   try {
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt: prompt })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    let jsonText = extractTextFromResponse(data);
+    let jsonText = await callAI(prompt);
+    
+    // Cleanup markdown if present
     jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     return JSON.parse(jsonText);
 
   } catch (error) {
     console.error("Backend analysis failed:", error);
-    return { reply: "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요." };
+    return { reply: "AI 분석을 불러올 수 없었어요. 잠시 후 다시 시도해주세요." };
   }
 };
 
@@ -73,20 +69,7 @@ export const getChatResponse = async (history, aiConfig) => {
 
   // Call Backend
   try {
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt: prompt })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    let resultText = extractTextFromResponse(data);
+    let resultText = await callAI(prompt);
     
     // Cleanup potential JSON wrapping
     if (resultText.trim().startsWith('{') && resultText.trim().endsWith('}')) {
