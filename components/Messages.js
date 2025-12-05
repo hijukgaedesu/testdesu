@@ -87,6 +87,10 @@ const ChatWindow = ({ aiId, aiSettings, messages, inputText, setInputText, onSen
     }
 
     const currentAi = aiSettings.ais.find(ai => ai.id === aiId);
+    
+    // Safety check in case AI was deleted but ID remains
+    if (!currentAi) return html`<div>AI Not Found</div>`;
+
     const currentConversation = messages.filter(msg => msg.aiId === aiId);
 
     return html`
@@ -207,7 +211,7 @@ const ChatWindow = ({ aiId, aiSettings, messages, inputText, setInputText, onSen
 };
 
 
-export const Messages = ({ aiSettings, onBackClick, userProfile }) => {
+export const Messages = ({ aiSettings, onBackClick, userProfile, onChatStateChange }) => {
   const [messages, setMessages] = useState([]);
   const [selectedAiId, setSelectedAiId] = useState(null);
   const [inputText, setInputText] = useState('');
@@ -216,7 +220,21 @@ export const Messages = ({ aiSettings, onBackClick, userProfile }) => {
   // Initialize selectedAiId on mount if desktop
   useEffect(() => {
     setMessages(getStoredMessages());
+    // Cleanup chat state when unmounting
+    return () => {
+        if (onChatStateChange) onChatStateChange(false);
+    }
   }, []);
+
+  const handleSelectAi = (id) => {
+      setSelectedAiId(id);
+      if (onChatStateChange) onChatStateChange(true);
+  };
+
+  const handleBackToConversationList = () => {
+      setSelectedAiId(null);
+      if (onChatStateChange) onChatStateChange(false);
+  };
 
   const handleDeleteMessage = (id) => {
       // Immediate deletion as requested
@@ -269,7 +287,7 @@ export const Messages = ({ aiSettings, onBackClick, userProfile }) => {
           aiSettings=${aiSettings} 
           messages=${messages}
           activeId=${selectedAiId} 
-          onSelect=${setSelectedAiId} 
+          onSelect=${handleSelectAi} 
           onBackClick=${onBackClick}
        />
        <${ChatWindow} 
@@ -280,7 +298,7 @@ export const Messages = ({ aiSettings, onBackClick, userProfile }) => {
           setInputText=${setInputText}
           onSend=${handleSend}
           isTyping=${isTyping}
-          onBackClick=${() => setSelectedAiId(null)}
+          onBackClick=${handleBackToConversationList}
           userProfile=${userProfile}
           onDeleteMessage=${handleDeleteMessage}
        />

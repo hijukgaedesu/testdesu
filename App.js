@@ -28,6 +28,7 @@ const App = () => {
   const [userProfile, setUserProfile] = useState(getUserProfile());
   const [aiSettings, setAiSettings] = useState(getAISettings());
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false); // Track if a chat room is open on mobile
   
   // State for filtering by tag
   const [currentTag, setCurrentTag] = useState(null);
@@ -74,6 +75,7 @@ const App = () => {
   const handleChangeView = (newView) => {
       setView(newView);
       setCurrentTag(null); // Reset tag filter when changing main views
+      setIsMobileChatOpen(false); // Reset chat state when changing views
   };
 
   const handleTagClick = (tag) => {
@@ -98,18 +100,18 @@ const App = () => {
       setEntries(updated);
   };
   
-  const handleToggleAiLike = (id) => {
-      const updated = toggleAiLike(id);
+  const handleToggleAiLike = (entryId, aiId) => {
+      const updated = toggleAiLike(entryId, aiId);
       setEntries(updated);
   };
   
-  const handleToggleAiBookmark = (id) => {
-      const updated = toggleAiBookmark(id);
+  const handleToggleAiBookmark = (entryId, aiId) => {
+      const updated = toggleAiBookmark(entryId, aiId);
       setEntries(updated);
   };
   
-  const handleDeleteAiReply = (id) => {
-      const updated = deleteAiReply(id);
+  const handleDeleteAiReply = (entryId, aiId) => {
+      const updated = deleteAiReply(entryId, aiId);
       setEntries(updated);
   };
 
@@ -117,7 +119,13 @@ const App = () => {
   let displayEntries = entries;
   if (view === 'bookmarks') {
       // Show entry if the User Post is bookmarked OR the AI Reply is bookmarked
-      displayEntries = entries.filter(e => e.isBookmarked || e.aiIsBookmarked);
+      displayEntries = entries.filter(e => {
+        // Check legacy bookmark
+        if (e.isBookmarked || e.aiIsBookmarked) return true;
+        // Check new array structure
+        if (e.aiResponses && e.aiResponses.some(r => r.isBookmarked)) return true;
+        return false;
+      });
   } else if (currentTag) {
       displayEntries = entries.filter(e => e.aiAnalysisTags && e.aiAnalysisTags.includes(currentTag));
   }
@@ -172,6 +180,7 @@ const App = () => {
            aiSettings=${aiSettings}
            userProfile=${userProfile}
            onBackClick=${() => setView('home')}
+           onChatStateChange=${setIsMobileChatOpen}
         />
     `;
   } else {
@@ -206,7 +215,7 @@ const App = () => {
       <!-- Mobile Menu Button (Star) -->
       <button 
         onClick=${() => setIsMobileOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-white rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-gray-100 flex items-center justify-center text-2xl z-30 sm:hidden active:scale-95 transition-transform"
+        className=${`fixed bottom-6 right-6 w-14 h-14 bg-white rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-gray-100 items-center justify-center text-2xl z-30 sm:hidden active:scale-95 transition-transform ${isMobileChatOpen && view === 'messages' ? 'hidden' : 'flex'}`}
         aria-label="Open Menu"
       >
         ⭐

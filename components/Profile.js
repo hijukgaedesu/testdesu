@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
-import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle, Key } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle, Key, Plus } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal.js';
 import { ComposeBox } from './ComposeBox.js';
 import { saveAISettings } from '../services/storage.js';
@@ -62,7 +62,12 @@ export const Profile = ({
   let displayedEntries = entries;
   if (activeTab === 'likes') {
       // Show entry if User Post is liked OR AI Reply is liked
-      displayedEntries = entries.filter(e => e.isLiked || e.aiIsLiked);
+      displayedEntries = entries.filter(e => {
+        if (e.isLiked) return true;
+        if (e.aiIsLiked) return true; // Legacy
+        if (e.aiResponses && e.aiResponses.some(r => r.isLiked)) return true;
+        return false;
+      });
   }
 
   const handleAiConfigChange = (e) => {
@@ -91,8 +96,66 @@ export const Profile = ({
     }
   };
 
-  const setAsActiveAi = (id) => {
-      setLocalAiSettings(prev => ({ ...prev, activeAiId: id }));
+  const toggleActiveAi = (id) => {
+      setLocalAiSettings(prev => {
+          const currentActiveIds = prev.activeAiIds || [];
+          let newActiveIds;
+          if (currentActiveIds.includes(id)) {
+              // Remove if already active, but prevent empty
+              if (currentActiveIds.length === 1) return prev;
+              newActiveIds = currentActiveIds.filter(aid => aid !== id);
+          } else {
+              // Add
+              newActiveIds = [...currentActiveIds, id];
+          }
+          return { ...prev, activeAiIds: newActiveIds };
+      });
+  };
+
+  const handleAddAi = () => {
+      if (localAiSettings.ais.length >= 2) return;
+      
+      const newId = Date.now();
+      const newAi = {
+          id: newId,
+          name: 'New AI',
+          handle: '@new_ai',
+          persona: 'You are a helpful assistant.',
+          avatarUrl: ''
+      };
+
+      setLocalAiSettings(prev => ({
+          ...prev,
+          ais: [...prev.ais, newAi],
+          activeAiIds: [...(prev.activeAiIds || []), newId] // Auto activate new AI
+      }));
+      setEditingAiId(newId);
+  };
+
+  const handleDeleteAi = () => {
+      if (localAiSettings.ais.length <= 1) return;
+
+      if (confirm('Are you sure you want to delete this AI?')) {
+          setLocalAiSettings(prev => {
+              const remainingAis = prev.ais.filter(ai => ai.id !== editingAiId);
+              // Clean up activeAiIds
+              const newActiveIds = (prev.activeAiIds || [])
+                .filter(id => id !== editingAiId);
+              
+              // Ensure at least one active
+              if (newActiveIds.length === 0 && remainingAis.length > 0) {
+                  newActiveIds.push(remainingAis[0].id);
+              }
+
+              setEditingAiId(remainingAis[0].id); // Switch edit view
+              
+              return {
+                  ...prev,
+                  ais: remainingAis,
+                  activeAiIds: newActiveIds
+              };
+          });
+      }
   };
 
   const saveAiConfig = () => {
@@ -111,17 +174,33 @@ export const Profile = ({
     onDelete(id);
   };
 
-  const handleAiDeleteCheck = (id) => {
+  const handleAiDeleteCheck = (entryId, aiId) => {
     // Immediate deletion
-    onDeleteAiReply(id);
+    onDeleteAiReply(entryId, aiId);
   };
 
-  // Helper to find AI info for display in feed
-  const getAiForEntry = (entry) => {
-    if (entry.aiId && aiSettings?.ais) {
-        return aiSettings.ais.find(ai => ai.id === entry.aiId) || aiSettings.ais[0];
+  // Helper to normalize responses into an array
+  const getResponses = (entry) => {
+    let responses = [];
+    if (entry.aiResponses) {
+        responses = entry.aiResponses;
+    } else if (entry.aiResponse) {
+        // Legacy fallback
+        responses = [{
+            aiId: entry.aiId,
+            reply: entry.aiResponse,
+            isLiked: entry.aiIsLiked,
+            isBookmarked: entry.aiIsBookmarked
+        }];
     }
-    return aiSettings?.ais ? aiSettings.ais[0] : { name: 'AI', handle: '@ai' };
+    return responses;
+  };
+
+  const getAiInfo = (id) => {
+      if (aiSettings?.ais) {
+          return aiSettings.ais.find(ai => ai.id === id) || { name: 'AI', handle: '@ai' };
+      }
+      return { name: 'AI', handle: '@ai' };
   };
 
   return html`
@@ -227,10 +306,10 @@ export const Profile = ({
         `}
         <div>
             ${displayedEntries.map((entry) => {
-                const replyAi = getAiForEntry(entry);
+                const responses = getResponses(entry);
                 return html`
                 <div key=${entry.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative">
-                    ${entry.aiResponse && html`
+                    ${responses.length > 0 && html`
                         <div className="absolute left-[34px] top-[50px] bottom-[20px] w-0.5 bg-gray-200 z-0"></div>
                     `}
                     <div className="flex gap-3 relative z-10">
@@ -259,7 +338,7 @@ export const Profile = ({
                                     <div className="p-2 rounded-full group-hover/action:bg-blue-50 transition-colors">
                                         <${MessageCircle} size=${18} />
                                     </div>
-                                    <span className="text-xs">${entry.aiResponse ? 1 : 0}</span>
+                                    <span className="text-xs">${responses.length}</span>
                                 </div>
                                 
                                 <div 
@@ -298,52 +377,57 @@ export const Profile = ({
                                 </div>
                             </div>
 
-                            <!-- AI Reply -->
-                            ${entry.aiResponse && html`
-                                <div className="mt-3 pt-1">
-                                    <div className="flex gap-3">
-                                        <div className="w-8 h-8 flex-shrink-0">
-                                            ${replyAi.avatarUrl 
-                                              ? html`<img src=${replyAi.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
-                                              : html`
-                                                  <div className="w-full h-full bg-[#1d9bf0] p-1.5 rounded-full text-white flex items-center justify-center">
-                                                      <${Bot} size=${16} />
-                                                  </div>
-                                              `
-                                            }
-                                        </div>
-                                        <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold text-black text-sm">${replyAi.name}</span>
-                                            </div>
-                                            <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
-                                            
-                                            <!-- AI Action Bar -->
-                                            <div className="flex gap-4 mt-2 text-gray-500">
-                                                <div 
-                                                    className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
-                                                    onClick=${(e) => { e.stopPropagation(); onToggleAiLike(entry.id); }}
-                                                >
-                                                    <${Heart} size=${14} className=${entry.aiIsLiked ? 'fill-current' : ''} />
+                            <!-- AI Replies -->
+                            ${responses.length > 0 && html`
+                                <div className="mt-3 space-y-3">
+                                    ${responses.map(response => {
+                                        const replyAi = getAiInfo(response.aiId);
+                                        return html`
+                                            <div key=${response.aiId} className="flex gap-3 pt-1">
+                                                <div className="w-8 h-8 flex-shrink-0">
+                                                    ${replyAi.avatarUrl 
+                                                    ? html`<img src=${replyAi.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
+                                                    : html`
+                                                        <div className="w-full h-full bg-[#1d9bf0] p-1.5 rounded-full text-white flex items-center justify-center">
+                                                            <${Bot} size=${16} />
+                                                        </div>
+                                                    `
+                                                    }
                                                 </div>
+                                                <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="font-bold text-black text-sm">${replyAi.name}</span>
+                                                    </div>
+                                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">${response.reply}</p>
+                                                    
+                                                    <!-- AI Action Bar -->
+                                                    <div className="flex gap-4 mt-2 text-gray-500">
+                                                        <div 
+                                                            className=${`flex items-center gap-1 group/action cursor-pointer ${response.isLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
+                                                            onClick=${(e) => { e.stopPropagation(); onToggleAiLike(entry.id, response.aiId); }}
+                                                        >
+                                                            <${Heart} size=${14} className=${response.isLiked ? 'fill-current' : ''} />
+                                                        </div>
 
-                                                <div 
-                                                    className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
-                                                    onClick=${(e) => { e.stopPropagation(); onToggleAiBookmark(entry.id); }}
-                                                >
-                                                    <${Bookmark} size=${14} className=${entry.aiIsBookmarked ? 'fill-current' : ''} />
-                                                </div>
-                                                
-                                                <div 
-                                                    className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
-                                                    onClick=${(e) => { e.stopPropagation(); handleAiDeleteCheck(entry.id); }}
-                                                    title="Delete Reply"
-                                                >
-                                                    <${Trash2} size=${14} />
+                                                        <div 
+                                                            className=${`flex items-center gap-1 group/action cursor-pointer ${response.isBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
+                                                            onClick=${(e) => { e.stopPropagation(); onToggleAiBookmark(entry.id, response.aiId); }}
+                                                        >
+                                                            <${Bookmark} size=${14} className=${response.isBookmarked ? 'fill-current' : ''} />
+                                                        </div>
+                                                        
+                                                        <div 
+                                                            className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
+                                                            onClick=${(e) => { e.stopPropagation(); handleAiDeleteCheck(entry.id, response.aiId); }}
+                                                            title="Delete Reply"
+                                                        >
+                                                            <${Trash2} size=${14} />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                        `;
+                                    })}
                                 </div>
                             `}
                         </div>
@@ -392,29 +476,39 @@ export const Profile = ({
             </div>
 
             <!-- AI Selector Tabs -->
-            <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-lg">
+            <div className="flex gap-2 mb-6 overflow-x-auto">
                 ${localAiSettings.ais.map(ai => html`
                     <button 
                         key=${ai.id}
                         onClick=${() => setEditingAiId(ai.id)}
-                        className=${`flex-1 py-2 rounded-md font-medium text-sm transition-colors ${editingAiId === ai.id ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-black'}`}
+                        className=${`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-colors whitespace-nowrap border ${editingAiId === ai.id ? 'bg-[#1d9bf0] text-white border-[#1d9bf0]' : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'}`}
                     >
                         ${ai.name || `AI ${ai.id}`}
                     </button>
                 `)}
+                
+                ${localAiSettings.ais.length < 2 && html`
+                    <button 
+                        onClick=${handleAddAi}
+                        className="py-2 px-4 rounded-md font-medium text-sm transition-colors border border-dashed border-gray-300 text-gray-500 hover:bg-gray-50 flex items-center justify-center"
+                        title="Add another AI (Max 2)"
+                    >
+                        <${Plus} size=${16} />
+                    </button>
+                `}
             </div>
 
             <!-- Active Toggle -->
             <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
                 <div>
                     <h4 className="font-bold text-[#1d9bf0]">Active Feed Companion</h4>
-                    <p className="text-xs text-gray-600">This AI will automatically reply to your posts in the Feed.</p>
+                    <p className="text-xs text-gray-600">Selected AIs will automatically reply to your posts.</p>
                 </div>
                 <button 
-                    onClick=${() => setAsActiveAi(editingAiId)}
-                    className=${`w-6 h-6 rounded-full border-2 flex items-center justify-center ${localAiSettings.activeAiId === editingAiId ? 'bg-[#1d9bf0] border-[#1d9bf0]' : 'border-gray-300'}`}
+                    onClick=${() => toggleActiveAi(editingAiId)}
+                    className=${`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${(localAiSettings.activeAiIds || []).includes(editingAiId) ? 'bg-[#1d9bf0] border-[#1d9bf0]' : 'border-gray-300'}`}
                 >
-                     ${localAiSettings.activeAiId === editingAiId && html`<${CheckCircle} size=${16} className="text-white" />`}
+                     ${(localAiSettings.activeAiIds || []).includes(editingAiId) && html`<${CheckCircle} size=${16} className="text-white" />`}
                 </button>
             </div>
 
@@ -489,13 +583,25 @@ export const Profile = ({
                     ></textarea>
                 </div>
 
-                <button 
-                    onClick=${saveAiConfig}
-                    className="bg-[#1d9bf0] text-white font-bold py-3 rounded-full hover:bg-[#1a8cd8] transition-colors flex items-center justify-center gap-2"
-                >
-                    <${Save} size=${20} />
-                    Save Configuration
-                </button>
+                <div className="flex gap-3">
+                    <button 
+                        onClick=${saveAiConfig}
+                        className="flex-1 bg-[#1d9bf0] text-white font-bold py-3 rounded-full hover:bg-[#1a8cd8] transition-colors flex items-center justify-center gap-2"
+                    >
+                        <${Save} size=${20} />
+                        Save Configuration
+                    </button>
+
+                    ${localAiSettings.ais.length > 1 && html`
+                        <button 
+                            onClick=${handleDeleteAi}
+                            className="px-4 border border-red-500 text-red-500 rounded-full hover:bg-red-50 transition-colors flex items-center justify-center"
+                            title="Delete this AI"
+                        >
+                            <${Trash2} size=${20} />
+                        </button>
+                    `}
+                </div>
             </div>
         </div>
       `}

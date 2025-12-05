@@ -55,12 +55,23 @@ export const toggleEntryBookmark = (id) => {
   return updated;
 };
 
-// AI Interactions
-export const toggleAiLike = (id) => {
+// AI Interactions - Updated for Multi-AI support
+export const toggleAiLike = (entryId, aiId) => {
   const current = getStoredEntries();
   const updated = current.map(entry => {
-    if (entry.id === id) {
-      return { ...entry, aiIsLiked: !entry.aiIsLiked };
+    if (entry.id === entryId) {
+      // Check for multi-response structure
+      if (entry.aiResponses) {
+          const newResponses = entry.aiResponses.map(r => {
+              if (r.aiId === aiId) return { ...r, isLiked: !r.isLiked };
+              return r;
+          });
+          return { ...entry, aiResponses: newResponses };
+      }
+      // Legacy fallback
+      if (!aiId || entry.aiId === aiId) {
+          return { ...entry, aiIsLiked: !entry.aiIsLiked };
+      }
     }
     return entry;
   });
@@ -68,11 +79,22 @@ export const toggleAiLike = (id) => {
   return updated;
 };
 
-export const toggleAiBookmark = (id) => {
+export const toggleAiBookmark = (entryId, aiId) => {
   const current = getStoredEntries();
   const updated = current.map(entry => {
-    if (entry.id === id) {
-      return { ...entry, aiIsBookmarked: !entry.aiIsBookmarked };
+    if (entry.id === entryId) {
+       // Check for multi-response structure
+       if (entry.aiResponses) {
+          const newResponses = entry.aiResponses.map(r => {
+              if (r.aiId === aiId) return { ...r, isBookmarked: !r.isBookmarked };
+              return r;
+          });
+          return { ...entry, aiResponses: newResponses };
+      }
+      // Legacy fallback
+      if (!aiId || entry.aiId === aiId) {
+          return { ...entry, aiIsBookmarked: !entry.aiIsBookmarked };
+      }
     }
     return entry;
   });
@@ -80,13 +102,20 @@ export const toggleAiBookmark = (id) => {
   return updated;
 };
 
-export const deleteAiReply = (id) => {
+export const deleteAiReply = (entryId, aiId) => {
   const current = getStoredEntries();
   const updated = current.map(entry => {
-    if (entry.id === id) {
-      // Remove AI response fields
-      const { aiResponse, aiId, aiIsLiked, aiIsBookmarked, ...rest } = entry;
-      return rest;
+    if (entry.id === entryId) {
+      if (entry.aiResponses) {
+          const newResponses = entry.aiResponses.filter(r => r.aiId !== aiId);
+          // If no responses left, we could optionally clear legacy fields too, but maintaining structure is safer
+          return { ...entry, aiResponses: newResponses };
+      }
+      // Legacy fallback
+      if (!aiId || entry.aiId === aiId) {
+          const { aiResponse, aiId, aiIsLiked, aiIsBookmarked, ...rest } = entry;
+          return rest;
+      }
     }
     return entry;
   });
@@ -160,16 +189,22 @@ export const getAISettings = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY_AI);
     if (!data) {
-        return { ais: DEFAULT_AIS, activeAiId: 1 };
+        return { ais: DEFAULT_AIS, activeAiIds: [1] };
     }
     const parsed = JSON.parse(data);
-    // Backward compatibility check
+    
+    // Migration: ensure activeAiIds exists (migrating from single activeAiId)
+    if (!parsed.activeAiIds) {
+        parsed.activeAiIds = parsed.activeAiId ? [parsed.activeAiId] : [1];
+    }
+    
+    // Backward compatibility check for ais array
     if (!parsed.ais) {
-        return { ais: DEFAULT_AIS, activeAiId: 1 };
+        return { ais: DEFAULT_AIS, activeAiIds: [1] };
     }
     return parsed;
   } catch {
-    return { ais: DEFAULT_AIS, activeAiId: 1 };
+    return { ais: DEFAULT_AIS, activeAiIds: [1] };
   }
 };
 

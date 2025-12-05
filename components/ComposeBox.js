@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef } from 'react';
 import htm from 'htm';
 import { Image, Calendar, MapPin, X } from 'lucide-react';
@@ -61,21 +60,40 @@ export const ComposeBox = ({ userProfile, onPostSuccess, onProfileClick }) => {
       content: inputText,
       createdAt: Date.now(),
       imageUrl: attachedImage,
-      aiAnalysisTags: hashtags // Save manual hashtags
+      aiAnalysisTags: hashtags // Save manual hashtags initially
     };
 
     try {
-      // Get current AI settings to find the active AI
+      // Get active AIs
       const aiSettings = getAISettings();
-      const activeAi = aiSettings.ais.find(ai => ai.id === aiSettings.activeAiId) || aiSettings.ais[0];
+      const activeAiIds = aiSettings.activeAiIds || [1];
+      const activeAis = aiSettings.ais.filter(ai => activeAiIds.includes(ai.id));
+      
+      // If no AI is active (edge case), use first one or none
+      const targetAis = activeAis.length > 0 ? activeAis : [aiSettings.ais[0]];
+      
+      const responses = [];
+      const aiTags = new Set(hashtags);
 
-      // 1. Get AI analysis using the ACTIVE AI
-      const analysis = await analyzeDiaryEntry(inputText, activeAi);
+      // Generate content for EACH active AI
+      await Promise.all(targetAis.map(async (ai) => {
+         try {
+             const analysis = await analyzeDiaryEntry(inputText, ai);
+             responses.push({
+                 aiId: ai.id,
+                 reply: analysis.reply
+             });
+             // Collect tags (optional: we can just use manual tags or merge)
+             // Not strictly merging tags from API here to keep it simple, but we could.
+         } catch (e) {
+             console.error(`AI ${ai.name} failed to reply`, e);
+         }
+      }));
       
       const finalEntry = {
         ...tempEntry,
-        aiResponse: analysis.reply,
-        aiId: activeAi.id 
+        aiResponses: responses, // Store array of responses
+        aiAnalysisTags: Array.from(aiTags)
       };
 
       const updatedEntries = saveEntry(finalEntry);

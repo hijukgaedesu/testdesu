@@ -28,18 +28,34 @@ export const Feed = ({
     onDelete(id);
   };
 
-  const handleAiDeleteCheck = (id) => {
+  const handleAiDeleteCheck = (entryId, aiId) => {
     // Immediate deletion as requested
-    onDeleteAiReply(id);
+    onDeleteAiReply(entryId, aiId);
   };
 
-  // Helper to find the AI config for a specific entry
-  const getAiForEntry = (entry) => {
-      // If entry has aiId, find it. Else fallback to active or first.
-      if (entry.aiId && aiSettings?.ais) {
-          return aiSettings.ais.find(ai => ai.id === entry.aiId) || aiSettings.ais[0];
+  // Helper to normalize responses into an array
+  const getResponses = (entry) => {
+    let responses = [];
+    if (entry.aiResponses) {
+        responses = entry.aiResponses;
+    } else if (entry.aiResponse) {
+        // Legacy fallback
+        responses = [{
+            aiId: entry.aiId,
+            reply: entry.aiResponse,
+            isLiked: entry.aiIsLiked,
+            isBookmarked: entry.aiIsBookmarked
+        }];
+    }
+    return responses;
+  };
+
+  // Helper to find the AI config for a specific ID
+  const getAiInfo = (id) => {
+      if (aiSettings?.ais) {
+          return aiSettings.ais.find(ai => ai.id === id) || { name: 'AI', handle: '@ai' };
       }
-      return aiSettings?.ais ? aiSettings.ais[0] : { name: 'AI', handle: '@ai' };
+      return { name: 'AI', handle: '@ai' };
   };
 
   return html`
@@ -67,11 +83,12 @@ export const Feed = ({
       <!-- Feed List -->
       <div>
         ${entries.map((entry) => {
-          const replyAi = getAiForEntry(entry);
+          const responses = getResponses(entry);
+          
           return html`
           <div key=${entry.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative group">
             <!-- Connector Line if AI Replied -->
-            ${entry.aiResponse && html`
+            ${responses.length > 0 && html`
                 <div className="absolute left-[34px] top-[50px] bottom-[20px] w-0.5 bg-gray-200 z-0"></div>
             `}
 
@@ -121,7 +138,7 @@ export const Feed = ({
                     <div className="p-2 rounded-full group-hover/action:bg-blue-50 transition-colors">
                         <${MessageCircle} size=${18} />
                     </div>
-                    <span className="text-xs">${entry.aiResponse ? 1 : 0}</span>
+                    <span className="text-xs">${responses.length}</span>
                   </div>
                   
                   <div 
@@ -161,52 +178,57 @@ export const Feed = ({
                 </div>
 
                 <!-- AI Reply Section (Thread style) -->
-                ${entry.aiResponse && html`
-                    <div className="mt-4 pt-0">
-                        <div className="flex gap-3">
-                            <div className="w-10 flex flex-col items-center">
-                                ${replyAi.avatarUrl 
-                                  ? html`<img src=${replyAi.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
-                                  : html`
-                                      <div className="bg-[#1d9bf0] p-1.5 rounded-full text-white">
-                                          <${Bot} size=${20} />
-                                      </div>
-                                  `
-                                }
-                            </div>
-                            <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3 relative">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-bold text-black text-sm">${replyAi.name}</span>
-                                    <span className="text-gray-500 text-xs">${replyAi.handle}</span>
-                                </div>
-                                <p className="text-gray-800 text-sm whitespace-pre-wrap">${entry.aiResponse}</p>
-                                
-                                <!-- AI Action Bar -->
-                                <div className="flex gap-4 mt-3 text-gray-500">
-                                    <div 
-                                        className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
-                                        onClick=${(e) => { e.stopPropagation(); onToggleAiLike(entry.id); }}
-                                    >
-                                        <${Heart} size=${14} className=${entry.aiIsLiked ? 'fill-current' : ''} />
+                ${responses.length > 0 && html`
+                    <div className="mt-4 pt-0 space-y-4">
+                        ${responses.map(response => {
+                            const replyAi = getAiInfo(response.aiId);
+                            return html`
+                                <div key=${response.aiId} className="flex gap-3">
+                                    <div className="w-10 flex flex-col items-center">
+                                        ${replyAi.avatarUrl 
+                                        ? html`<img src=${replyAi.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200" />`
+                                        : html`
+                                            <div className="bg-[#1d9bf0] p-1.5 rounded-full text-white">
+                                                <${Bot} size=${20} />
+                                            </div>
+                                        `
+                                        }
                                     </div>
+                                    <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-none p-3 relative">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold text-black text-sm">${replyAi.name}</span>
+                                            <span className="text-gray-500 text-xs">${replyAi.handle}</span>
+                                        </div>
+                                        <p className="text-gray-800 text-sm whitespace-pre-wrap">${response.reply}</p>
+                                        
+                                        <!-- AI Action Bar -->
+                                        <div className="flex gap-4 mt-3 text-gray-500">
+                                            <div 
+                                                className=${`flex items-center gap-1 group/action cursor-pointer ${response.isLiked ? 'text-pink-600' : 'hover:text-pink-600'}`}
+                                                onClick=${(e) => { e.stopPropagation(); onToggleAiLike(entry.id, response.aiId); }}
+                                            >
+                                                <${Heart} size=${14} className=${response.isLiked ? 'fill-current' : ''} />
+                                            </div>
 
-                                    <div 
-                                        className=${`flex items-center gap-1 group/action cursor-pointer ${entry.aiIsBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
-                                        onClick=${(e) => { e.stopPropagation(); onToggleAiBookmark(entry.id); }}
-                                    >
-                                        <${Bookmark} size=${14} className=${entry.aiIsBookmarked ? 'fill-current' : ''} />
-                                    </div>
-                                    
-                                    <div 
-                                        className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
-                                        onClick=${(e) => { e.stopPropagation(); handleAiDeleteCheck(entry.id); }}
-                                        title="Delete Reply"
-                                    >
-                                        <${Trash2} size=${14} />
+                                            <div 
+                                                className=${`flex items-center gap-1 group/action cursor-pointer ${response.isBookmarked ? 'text-[#1d9bf0]' : 'hover:text-[#1d9bf0]'}`}
+                                                onClick=${(e) => { e.stopPropagation(); onToggleAiBookmark(entry.id, response.aiId); }}
+                                            >
+                                                <${Bookmark} size=${14} className=${response.isBookmarked ? 'fill-current' : ''} />
+                                            </div>
+                                            
+                                            <div 
+                                                className="flex items-center gap-1 group/action cursor-pointer hover:text-red-500"
+                                                onClick=${(e) => { e.stopPropagation(); handleAiDeleteCheck(entry.id, response.aiId); }}
+                                                title="Delete Reply"
+                                            >
+                                                <${Trash2} size=${14} />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            `;
+                        })}
                     </div>
                 `}
 
