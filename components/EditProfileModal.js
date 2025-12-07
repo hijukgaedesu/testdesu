@@ -139,18 +139,26 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
             
             <div className="flex gap-4">
                  <${FloatingInput} 
-                    label="Following (Manual)" 
+                    label="Following" 
                     name="following" 
-                    type="number"
-                    value=${formData.following || 0} 
-                    onChange=${handleChange} 
+                    type="text"
+                    inputMode="numeric"
+                    value=${formData.following ?? ''} 
+                    onChange=${(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        handleChange({ target: { name: 'following', value: val }});
+                    }} 
                 />
                  <${FloatingInput} 
-                    label="Followers (Manual)" 
+                    label="Followers" 
                     name="followers" 
-                    type="number"
-                    value=${formData.followers || 0} 
-                    onChange=${handleChange} 
+                    type="text"
+                    inputMode="numeric"
+                    value=${formData.followers ?? ''} 
+                    onChange=${(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        handleChange({ target: { name: 'followers', value: val }});
+                    }} 
                 />
             </div>
         </div>
@@ -159,7 +167,7 @@ export const EditProfileModal = ({ userProfile, onClose }) => {
   `;
 };
 
-const FloatingInput = ({ label, value, onChange, name, type = "text", prefix, maxLength }) => html`
+const FloatingInput = ({ label, value, onChange, name, type = "text", prefix, maxLength, inputMode }) => html`
     <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative group">
         <div className="flex justify-between">
             <label className="text-xs text-gray-500 group-focus-within:text-[#1d9bf0]">${label}</label>
@@ -174,6 +182,7 @@ const FloatingInput = ({ label, value, onChange, name, type = "text", prefix, ma
                 onChange=${onChange}
                 className="w-full bg-transparent text-black outline-none py-1"
                 maxLength=${maxLength}
+                inputMode=${inputMode}
             />
         </div>
     </div>
