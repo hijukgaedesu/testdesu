@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import htm from 'htm';
-import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle, Key, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Bot, Heart, Save, Camera, MessageCircle, Share, Bookmark, Trash2, CheckCircle, Key, Plus, Download, Upload, Copy } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal.js';
 import { ComposeBox } from './ComposeBox.js';
-import { saveAISettings } from '../services/storage.js';
+import { saveAISettings, getAllData, restoreData } from '../services/storage.js';
 
 const html = htm.bind(React.createElement);
 
@@ -30,6 +30,10 @@ export const Profile = ({
   const [localAiSettings, setLocalAiSettings] = useState(aiSettings);
   const [editingAiId, setEditingAiId] = useState(1);
   const [apiKey, setApiKey] = useState('');
+  
+  // Sync State
+  const [syncData, setSyncData] = useState('');
+  const [importText, setImportText] = useState('');
 
   const aiAvatarInputRef = useRef(null);
 
@@ -48,7 +52,7 @@ export const Profile = ({
     if (storedKey) setApiKey(storedKey);
   }, []);
 
-  // Update active tab when defaultTab changes (e.g. navigating from Sidebar)
+  // Update active tab when defaultTab changes
   useEffect(() => {
     if (defaultTab) {
         setActiveTab(defaultTab);
@@ -61,7 +65,6 @@ export const Profile = ({
   // Filter entries for Profile Feed
   let displayedEntries = entries;
   if (activeTab === 'likes') {
-      // Show entry if User Post is liked OR AI Reply is liked
       displayedEntries = entries.filter(e => {
         if (e.isLiked) return true;
         if (e.aiIsLiked) return true; // Legacy
@@ -101,11 +104,9 @@ export const Profile = ({
           const currentActiveIds = prev.activeAiIds || [];
           let newActiveIds;
           if (currentActiveIds.includes(id)) {
-              // Remove if already active, but prevent empty
               if (currentActiveIds.length === 1) return prev;
               newActiveIds = currentActiveIds.filter(aid => aid !== id);
           } else {
-              // Add
               newActiveIds = [...currentActiveIds, id];
           }
           return { ...prev, activeAiIds: newActiveIds };
@@ -127,7 +128,7 @@ export const Profile = ({
       setLocalAiSettings(prev => ({
           ...prev,
           ais: [...prev.ais, newAi],
-          activeAiIds: [...(prev.activeAiIds || []), newId] // Auto activate new AI
+          activeAiIds: [...(prev.activeAiIds || []), newId] 
       }));
       setEditingAiId(newId);
   };
@@ -138,16 +139,14 @@ export const Profile = ({
       if (confirm('Are you sure you want to delete this AI?')) {
           setLocalAiSettings(prev => {
               const remainingAis = prev.ais.filter(ai => ai.id !== editingAiId);
-              // Clean up activeAiIds
               const newActiveIds = (prev.activeAiIds || [])
                 .filter(id => id !== editingAiId);
               
-              // Ensure at least one active
               if (newActiveIds.length === 0 && remainingAis.length > 0) {
                   newActiveIds.push(remainingAis[0].id);
               }
 
-              setEditingAiId(remainingAis[0].id); // Switch edit view
+              setEditingAiId(remainingAis[0].id);
               
               return {
                   ...prev,
@@ -166,26 +165,47 @@ export const Profile = ({
 
   const handleSaveApiKey = () => {
       localStorage.setItem('gemini_api_key', apiKey);
-      alert('API Key Saved! You can now use AI features.');
+      alert('API Key Saved! AI features are now enabled.');
+  };
+  
+  const handleExportData = () => {
+      const data = getAllData();
+      const jsonStr = JSON.stringify(data);
+      setSyncData(jsonStr);
+      navigator.clipboard.writeText(jsonStr).then(() => {
+          alert("Sync code copied to clipboard! Send this to your desktop/mobile to load your data.");
+      });
+  };
+  
+  const handleImportData = () => {
+      if (!importText.trim()) return;
+      try {
+          const data = JSON.parse(importText);
+          const success = restoreData(data);
+          if (success) {
+              alert("Data restored successfully! reloading...");
+              window.location.reload();
+          } else {
+              alert("Failed to restore data. Invalid format.");
+          }
+      } catch (e) {
+          alert("Invalid JSON format.");
+      }
   };
 
   const handleDeleteCheck = (id) => {
-    // Immediate deletion
     onDelete(id);
   };
 
   const handleAiDeleteCheck = (entryId, aiId) => {
-    // Immediate deletion
     onDeleteAiReply(entryId, aiId);
   };
 
-  // Helper to normalize responses into an array
   const getResponses = (entry) => {
     let responses = [];
     if (entry.aiResponses) {
         responses = entry.aiResponses;
     } else if (entry.aiResponse) {
-        // Legacy fallback
         responses = [{
             aiId: entry.aiId,
             reply: entry.aiResponse,
@@ -442,18 +462,17 @@ export const Profile = ({
       `}
 
       ${activeTab === 'ai_settings' && html`
-        <div className="p-6">
-            <h3 className="text-xl font-bold mb-4">AI Configuration</h3>
+        <div className="p-6 pb-20">
+            <h3 className="text-xl font-bold mb-4">Settings</h3>
             
-            <!-- API Key Setup (New) -->
+            <!-- API Key Setup -->
             <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                     <${Key} size=${18} className="text-[#1d9bf0]" />
                     <h4 className="font-bold text-black">API Key Setup</h4>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">
-                    To use AI features on this demo site, please enter your Gemini API Key. 
-                    It will be stored locally in your browser.
+                    Enter your Gemini API Key to enable AI features.
                 </p>
                 <div className="flex gap-2">
                     <div className="flex-1 border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#1d9bf0] focus-within:border-[#1d9bf0] px-3 py-1 relative bg-white">
@@ -470,10 +489,62 @@ export const Profile = ({
                         onClick=${handleSaveApiKey}
                         className="bg-black text-white font-bold px-4 rounded-md hover:bg-gray-800 transition-colors whitespace-nowrap h-auto"
                     >
-                        Save Key
+                        Save
                     </button>
                 </div>
             </div>
+
+            <!-- Cross Device Sync -->
+            <div className="mb-8 p-4 bg-[#f0f9ff] rounded-xl border border-blue-100">
+                 <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1 bg-[#1d9bf0] rounded text-white"><${Share} size=${14} /></div>
+                    <h4 className="font-bold text-black">Cross-Device Sync (Backup/Restore)</h4>
+                </div>
+                <p className="text-xs text-gray-600 mb-4">
+                    Since this is a private app without a central server, data is stored on your device. 
+                    To move your data (Desktop ↔ Mobile), copy the Sync Code below.
+                </p>
+                
+                <div className="flex flex-col gap-4">
+                    <!-- Export -->
+                    <div>
+                        <button 
+                            onClick=${handleExportData}
+                            className="flex items-center gap-2 text-sm font-bold text-[#1d9bf0] hover:underline mb-2"
+                        >
+                            <${Copy} size=${16} /> Copy Sync Code (Export)
+                        </button>
+                        ${syncData && html`
+                            <div className="text-[10px] text-gray-400 break-all bg-white p-2 rounded border border-gray-200 max-h-[60px] overflow-hidden">
+                                ${syncData.substring(0, 100)}... (Copied to clipboard)
+                            </div>
+                        `}
+                    </div>
+
+                    <!-- Import -->
+                    <div className="border-t border-blue-100 pt-3">
+                         <label className="text-xs font-bold text-gray-700 block mb-1">Paste Sync Code to Restore (Import)</label>
+                         <div className="flex gap-2">
+                             <input 
+                                type="text"
+                                value=${importText}
+                                onChange=${(e) => setImportText(e.target.value)}
+                                className="flex-1 border border-gray-300 rounded-md px-3 py-1 text-sm outline-none focus:border-[#1d9bf0]"
+                                placeholder="Paste JSON code here..."
+                             />
+                             <button 
+                                onClick=${handleImportData}
+                                className="bg-[#1d9bf0] text-white text-xs font-bold px-3 py-1 rounded-md hover:bg-[#1a8cd8] transition-colors whitespace-nowrap"
+                             >
+                                <${Download} size=${14} className="inline mr-1" /> Restore
+                             </button>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Configuration Header -->
+            <h3 className="text-lg font-bold mb-3 mt-8">AI Personas</h3>
 
             <!-- AI Selector Tabs -->
             <div className="flex gap-2 mb-6 overflow-x-auto">
@@ -499,10 +570,10 @@ export const Profile = ({
             </div>
 
             <!-- Active Toggle -->
-            <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
+            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200">
                 <div>
-                    <h4 className="font-bold text-[#1d9bf0]">Active Feed Companion</h4>
-                    <p className="text-xs text-gray-600">Selected AIs will automatically reply to your posts.</p>
+                    <h4 className="font-bold text-black">Active Feed Companion</h4>
+                    <p className="text-xs text-gray-600">This AI will reply to your new posts.</p>
                 </div>
                 <button 
                     onClick=${() => toggleActiveAi(editingAiId)}
@@ -513,7 +584,6 @@ export const Profile = ({
             </div>
 
             <div className="flex flex-col gap-6">
-                 
                  <!-- AI Avatar Upload -->
                  <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-500 block">Avatar</label>

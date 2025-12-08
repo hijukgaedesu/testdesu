@@ -1,7 +1,4 @@
 
-// Removed unused imports to prevent export errors
-// import { DiaryEntry, UserProfile } from '../types';
-
 const STORAGE_KEY_ENTRIES = 'haru_tweet_entries';
 const STORAGE_KEY_USER = 'haru_tweet_user';
 const STORAGE_KEY_AI = 'haru_tweet_ai_config_v2'; 
@@ -108,7 +105,6 @@ export const deleteAiReply = (entryId, aiId) => {
     if (entry.id === entryId) {
       if (entry.aiResponses) {
           const newResponses = entry.aiResponses.filter(r => r.aiId !== aiId);
-          // If no responses left, we could optionally clear legacy fields too, but maintaining structure is safer
           return { ...entry, aiResponses: newResponses };
       }
       // Legacy fallback
@@ -211,4 +207,29 @@ export const getAISettings = () => {
 export const saveAISettings = (settings) => {
   localStorage.setItem(STORAGE_KEY_AI, JSON.stringify(settings));
   return settings;
+};
+
+// Cross-Device Sync Helpers
+export const getAllData = () => {
+  return {
+    entries: getStoredEntries(),
+    user: getUserProfile(),
+    aiSettings: getAISettings(),
+    messages: getStoredMessages(),
+    timestamp: Date.now()
+  };
+};
+
+export const restoreData = (data) => {
+  if (!data) return false;
+  try {
+    if (data.entries) localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(data.entries));
+    if (data.user) localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+    if (data.aiSettings) localStorage.setItem(STORAGE_KEY_AI, JSON.stringify(data.aiSettings));
+    if (data.messages) localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(data.messages));
+    return true;
+  } catch (e) {
+    console.error("Restore failed", e);
+    return false;
+  }
 };
